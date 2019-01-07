@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+import "common.proto";
+
+message LoginRequest {
+    string firebaseUid = 1;
+}
+
+message LoginResponse {
+    ErrorCode errorCode = 1;
+    ProfileData ownProfile = 2;
+
+    enum ErrorCode {
+        OK = 0;
+        INVALID_UID = 1;
+    }
+}
+

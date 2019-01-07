@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rendertheme xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" map-background="#e8e7e3"
+             version="1" xmlns="http://opensciencemap.org/rendertheme"
+             xsi:schemaLocation="http://opensciencemap.org/rendertheme https://raw.githubusercontent.com/mapsforge/vtm/master/resources/rendertheme.xsd">
+
+    <tag-transform k="render_height" k-match="height"/>
+    <tag-transform k="render_min_height" k-match="min_height"/>
+
+    <style-area fade="11" fill="#e8e7e3" id="residential"/>
+    <style-area fade="10" fill="#e6e3e5" id="railway|industrial"/>
+
+    <style-area fade="10" fill="#c9dc91" id="greens"/>
+    <style-area fade="12" fill="#d3dcb9" id="lightgreen" />
+    <style-area fade="10" fill="#c2cba5" id="darkgreen" />
+    <style-area fade="12" fill="#e4dab5" id="farmland" stroke="#d1dbc7" stroke-width="1.0"/>
+    <style-area fade="12" fill="#deecb9" id="greens2"/>
+    <style-area fade="11" fill="#9ac56e" id="park" />
+    <style-area blend="11" blend-fill="#83aa5b" fade="8" fill="#b3d095" id="wood" use="park"/>
+
+    <style-area fade="15" fill="#44cccccc" id="building" stroke="#7f7f7f" stroke-width="2.0"/>
+
+    <style-area fade="-1" fill="#99badf" id="water" mesh="true"/>
+
+
+    <style-line cap="round" fade="14" fix="true" id="park" stroke="#9ac56e" width="5.0"/>
+    <style-line cap="round" fix="true" id="fix" width="1.0"/>
+
+    <style-line cap="butt" id="residential" stroke="#ffffff" width="2"/>
+
+    <style-line use="residential" id="footway" stipple="1" stipple-stroke="#000000" stipple-width="0" width="-1" />
+
+    <style-line cap="round" fix="true" id="water" stroke="#a4bbcc" width="1.0"/>
+    <style-line fix="false" id="river" stroke="#a4bbcc" use="water"/>
+
+    <style-line fade="15" id="building" stroke="#7f7f7f" use="fix"/>
+
+    <!-- Landuse -->
+    <m k="layer" v="landuse">
+        <m k="class">
+            <m v="residential|commercial|retail">
+                <area use="residential"/>
+            </m>
+
+            <m v="cemetery">
+                <area use="park"/>
+                <line use="park"/>
+            </m>
+
+            <m v="railway|industrial">
+                <area use="railway|industrial"/>
+            </m>
+        </m>
+    </m>
+
+    <!-- Landcover -->
+    <m k="layer" v="landcover">
+        <m k="class">
+            <m v="farmland">
+                <area use="farmland"/>
+            </m>
+
+            <m v="ice">
+                <area use="farmland"/>
+            </m>
+
+            <m v="wood">
+                <area use="wood"/>
+            </m>
+
+            <m v="grass">
+                <area use="greens"/>
+            </m>
+
+            <m v="wetland">
+                <area use="greens2"/>
+            </m>
+        </m>
+
+        <m k="subclass">
+            <m v="park">
+                <line use="park"/>
+            </m>
+        </m>
+    </m>
+
+    <m k="layer" v="park">
+        <m k="class">
+            <m v="national_park|nature_reserve">
+                <area use="greens2"/>
+            </m>
+        </m>
+    </m>
+
+    <m k="layer" v="waterway">
+        <m k="class">
+            <m v="ditch|drain" zoom-min="14">
+                <line fade="14" use="water" width="0.2"/>
+            </m>
+
+            <m v="canal">
+                <line use="river" width="-0.3"/>
+            </m>
+
+            <m v="stream" zoom-min="13">
+                <line fade="13" use="water" width="10"/>
+            </m>
+
+            <m select="first" v="river">
+                <line use="river" width="0.3"/>
+            </m>
+        </m>
+    </m>
+
+    <m k="layer" v="water">
+        <m k="class">
+            <m v="ocean|lake|river">
+                <area use="water" />
+                <line use="water" width="5"/>
+            </m>
+        </m>
+    </m>
+
+    <m k="layer" v="transportation">
+        <m k="class">
+            <m v="rail|transit">
+                <line cap="round" fix="true" stroke="#777777" width="0.9"/>
+            </m>
+
+            <m v="track">
+                <line use="footway"/>
+            </m>
+
+            <m v="path">
+                <line use="footway"/>
+            </m>
+
+            <m v="service">
+                <m k="service" v="-|parking_aisle">
+                    <line use="residential"/>
+                </m>
+
+                <m k="service" v="parking_aisle" zoom-min="16">
+                    <line use="residential" width="-0.4"/>
+                </m>
+            </m>
+
+            <m v="minor">
+                <line use="residential"/>
+            </m>
+
+            <m v="tertiary">
+                <line use="residential"/>
+            </m>
+
+            <m v="secondary">
+                <line use="residential"/>
+            </m>
+
+            <m v="primary">
+                <line use="residential"/>
+            </m>
+
+            <m v="trunk">
+                <line use="residential"/>
+            </m>
+
+            <m v="motorway">
+                <line use="residential"/>
+            </m>
+        </m>
+
+        <m k="brunnel">
+            <m v="bridge">
+                <line use="footway" />
+            </m>
+        </m>
+    </m>
+
+    <!-- building -->
+    <m k="layer" v="building|building:part">
+        <m v="building">
+            <m zoom-min="14">
+                <m closed="yes">
+                    <area fade="14" use="building"/>
+                </m>
+
+                <m closed="no">
+                    <line fade="14" use="building"/>
+                </m>
+            </m>
+        </m>
+
+        <m v="building:part">
+            <m zoom-min="16">
+                <m closed="yes">
+                    <area fade="16" use="building"/>
+                </m>
+
+                <m closed="no">
+                    <line fade="16" use="building"/>
+                </m>
+            </m>
+        </m>
+    </m>
+</rendertheme>

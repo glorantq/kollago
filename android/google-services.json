@@ -1,0 +1,63 @@
+{
+  "project_info": {
+    "project_number": "328356223445",
+    "firebase_url": "https://kolla-go.firebaseio.com",
+    "project_id": "kolla-go",
+    "storage_bucket": "kolla-go.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:328356223445:android:cf92ed6a54e7232c",
+        "android_client_info": {
+          "package_name": "skacce.rs.kollago"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "328356223445-anvdo6aag8a7mlieue5mvutp8f49kfdq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "skacce.rs.kollago",
+            "certificate_hash": "f394d50f1be936038eb85c33552093ff4950d201"
+          }
+        },
+        {
+          "client_id": "328356223445-02verr195fl205nutibtflk15uqpa1o1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "skacce.rs.kollago",
+            "certificate_hash": "73a470dc49cc320ee6a05669275e0184807fcce8"
+          }
+        },
+        {
+          "client_id": "328356223445-itv1t4f718pkg0dgh46hto3l28sa3jo2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGFMTGFmou4QBnIiwu9xM33VWC-7acWSo"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "328356223445-itv1t4f718pkg0dgh46hto3l28sa3jo2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

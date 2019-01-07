@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+message Coordinates {
+    float latitude = 1;
+    float longitude = 2;
+}
+
+message ProfileData {
+    string username = 1;
+    PlayerModel model = 2;
+    int64 xp = 3;
+
+    int64 coins = 4; // Optional
+
+    string baseId = 5;
+
+    enum PlayerModel {
+        DEKU = 0;
+        URARAKA = 1;
+    }
+}
+
+message StopData {
+    string stop_id = 1;
+    Coordinates coordinates = 2;
+    string name = 3;
+}
+
+message BaseData {
+    string base_id = 1;
+    int32 level = 2;
+
+    string items = 3; // Optional
+
+    Coordinates coordinates = 4;
+
+    ProfileData ownerProfile = 5; // Optional
+}

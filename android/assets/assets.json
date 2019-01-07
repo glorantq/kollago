@@ -1,0 +1,34 @@
+{
+  "textures": [
+    "gui/background.png",
+    "gui/button_hover.png",
+    "gui/button_normal.png",
+    "gui/logo.png",
+    "gui/text_input.png",
+    "player/deku/ch00_j00_arm.png",
+    "player/deku/ch00_j00_cheek.png",
+    "player/deku/ch00_j00_chest.png",
+    "player/deku/ch00_j00_eye.png",
+    "player/deku/ch00_j00_face.png",
+    "player/deku/ch00_j00_hand.png",
+    "player/deku/ch00_j00_head.png",
+    "player/deku/ch00_j00_leg.png",
+    "player/deku/ch00_j00_mouth.png",
+    "player/deku/ch00_u00_chest.png",
+    "player/deku/ch00_u00_leg.png",
+    "player/uraraka/ch02_j00_cheek.png",
+    "player/uraraka/ch02_j00_eye.png",
+    "player/uraraka/ch02_j00_face.png",
+    "player/uraraka/ch02_j00_hand.png",
+    "player/uraraka/ch02_j00_head.png",
+    "player/uraraka/ch02_j00_mouth.png",
+    "player/uraraka/ch02_u00_chest.png",
+    "player/uraraka/ch02_u00_leg.png",
+    "random/ch_random_body.png",
+    "sky/sky.png"
+  ],
+
+  "music": [],
+
+  "sound": []
+}

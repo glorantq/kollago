@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+import "common.proto";
+
+message NearStops {
+    string firebaseUid = 1;
+    Coordinates position = 2;
+}
+
+message NearBases {
+    string firebaseUid = 1;
+    Coordinates position = 2;
+
+    string gameSecret = 3; // Set by the game server when forwarding to the central server
+}
+
+message NearFeaturesResponse {
+    repeated StopData stopData = 1;
+    repeated BaseData baseData = 2;
+}
