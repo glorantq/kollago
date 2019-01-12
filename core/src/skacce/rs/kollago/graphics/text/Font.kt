@@ -41,6 +41,10 @@ class Font(val name: String, normalPath: String?, italicPath: String?, boldPath:
         }
     }
 
+    override fun toString(): String {
+        return "$name [${if(boldHandle != null) "B" else ""}${if(italicHandle != null) "I" else ""}"
+    }
+
     companion object {
         private const val CHARSET = "0123456789qwertzuiopőúasdfghjkléáűíyxcvbnmöüóÖÜÓQWERTZUIOPŐÚASDFGHJKLÉÁŰÍYXCVBNM,.-?:_;>*\\|\$ß@&#><{}'\"+!%/=()©²"
     }

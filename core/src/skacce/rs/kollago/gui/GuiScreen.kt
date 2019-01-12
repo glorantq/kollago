@@ -39,4 +39,8 @@ abstract class GuiScreen : Screen {
     override fun dispose() {
         guiElements.forEach { it.destroy() }
     }
+
+    override fun hide() {
+        dispose()
+    }
 }

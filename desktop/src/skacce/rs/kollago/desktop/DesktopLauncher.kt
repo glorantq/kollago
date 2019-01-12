@@ -64,12 +64,12 @@ class DesktopLauncher : Platform, TextInputProvider {
         callback("")
     }
 
-    override fun performGoogleLogIn(callback: (success: Boolean) -> Unit) {
-        callback(false)
+    override fun performGoogleLogIn(callback: (success: Boolean, message: String) -> Unit) {
+        callback(false, "")
     }
 
-    override fun performEmailAuth(email: String, password: String, register: Boolean, callback: (success: Boolean) -> Unit) {
-        callback(false)
+    override fun performEmailAuth(email: String, password: String, register: Boolean, callback: (success: Boolean, message: String) -> Unit) {
+        callback(false, "")
     }
 
     override fun logOut(callback: () -> Unit) {
@@ -91,6 +91,14 @@ class DesktopLauncher : Platform, TextInputProvider {
 
         override fun getDisplayName(): String {
             return ""
+        }
+
+        override fun isEmailVerified(): Boolean {
+            return false
+        }
+
+        override fun refresh(callback: (success: Boolean, message: String) -> Unit) {
+            callback(false, "")
         }
     }
 }

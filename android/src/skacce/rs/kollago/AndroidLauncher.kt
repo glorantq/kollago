@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.graphics.Rect
 import android.location.Location
 import android.location.LocationListener
@@ -14,6 +15,7 @@ import android.os.Bundle
 import android.support.v4.app.ActivityCompat
 import android.text.Editable
 import android.text.InputFilter
+import android.text.InputType
 import android.text.TextWatcher
 import android.util.Log
 import android.view.KeyEvent
@@ -29,6 +31,7 @@ import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
 import com.badlogic.gdx.backends.android.surfaceview.GLSurfaceView20API18
 import com.badlogic.gdx.utils.SharedLibraryLoader
+import com.crashlytics.android.Crashlytics
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -70,7 +73,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
     private lateinit var firebaseAuth: FirebaseAuth
     private lateinit var googleClient: GoogleSignInClient
 
-    private val googleRequestMap: MutableMap<Int, (Boolean) -> Unit> = hashMapOf()
+    private val googleRequestMap: MutableMap<Int, (Boolean, String) -> Unit> = hashMapOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,7 +151,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
         inputLayout.addView(textInput)
         inputLayout.addView(okButton)
-        inputLayout.y = 0f
+        inputLayout.y = statusBarHeight.toFloat()
 
         val relativeLayout = RelativeLayout(this)
         val gameViewParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT)
@@ -158,6 +161,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
         val inputParams = RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         inputLayout.layoutParams = inputParams
+        inputLayout.setBackgroundColor(Color.WHITE)
         relativeLayout.addView(inputLayout)
 
         setContentView(relativeLayout)
@@ -201,10 +205,14 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if(requestCode > REQUEST_GOOGLE_SIGN_IN) {
+        Log.i("Result", "Code: $requestCode")
+
+        if (requestCode > REQUEST_GOOGLE_SIGN_IN) {
             val offset: Int = requestCode - REQUEST_GOOGLE_SIGN_IN
-            val callback: (Boolean) -> Unit = googleRequestMap[offset]!!
+            val callback: (Boolean, String) -> Unit = googleRequestMap[offset]!!
             googleRequestMap.remove(offset)
+
+            Log.i("Authentication", "Handling Google callback, offset: $offset")
 
             val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(data)
 
@@ -213,7 +221,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
                 handleGoogleLogin(account, callback)
             } catch (e: ApiException) {
                 Log.e("Authentication", "Failed to sign in with Google!")
-                callback(false)
+                callback(false, e.localizedMessage)
             }
         }
     }
@@ -333,7 +341,11 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
             textInput.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(maxChars))
 
-            textInput.inputType = if (type === TextInputProvider.InputType.NUMBER) android.text.InputType.TYPE_CLASS_NUMBER else android.text.InputType.TYPE_CLASS_TEXT
+            textInput.inputType = when {
+                type === TextInputProvider.InputType.NUMBER -> android.text.InputType.TYPE_CLASS_NUMBER
+                type === TextInputProvider.InputType.TEXT -> android.text.InputType.TYPE_CLASS_TEXT
+                else -> InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
 
             inputLayout.visibility = View.VISIBLE
             textInput.requestFocus()
@@ -377,7 +389,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
     override fun getFirebaseUID(callback: (token: String) -> Unit) {
         firebaseAuth.currentUser?.getIdToken(true)?.addOnCompleteListener {
-            callback(it.result!!.token!!)
+            callback(it.result?.token ?: "")
         }?.addOnFailureListener {
             Log.e("Authentication", "Failed to get UID!")
             it.printStackTrace()
@@ -390,43 +402,44 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         } ?: callback("")
     }
 
-    override fun performGoogleLogIn(callback: (success: Boolean) -> Unit) {
+    override fun performGoogleLogIn(callback: (success: Boolean, message: String) -> Unit) {
         val signInIntent: Intent = googleClient.signInIntent
 
-        val requestOffset: Int = Random().nextInt()
+        val requestOffset: Int = Random().nextInt(600) + 1
         googleRequestMap[requestOffset] = callback
 
         startActivityForResult(signInIntent, REQUEST_GOOGLE_SIGN_IN + requestOffset)
     }
 
-    override fun performEmailAuth(email: String, password: String, register: Boolean, callback: (success: Boolean) -> Unit) {
+    override fun performEmailAuth(email: String, password: String, register: Boolean, callback: (success: Boolean, message: String) -> Unit) {
         if (register) {
             firebaseAuth.createUserWithEmailAndPassword(email, password).addOnSuccessListener {
                 Log.i("Authentication", "User successfully registered!")
 
-                callback(true)
+                it.user.sendEmailVerification()
+                callback(true, "")
             }.addOnFailureListener {
                 Log.e("Authentication", "Failed to register account!")
                 it.printStackTrace()
 
-                callback(false)
+                callback(false, it.localizedMessage)
             }.addOnCanceledListener {
                 Log.e("Authentication", "createUserWithEmailAndPassword Task got canceled!")
 
-                callback(false)
+                callback(false, "Megszakítva")
             }
         } else {
             firebaseAuth.signInWithEmailAndPassword(email, password).addOnSuccessListener {
                 Log.i("Authentication", "User successfully signed in!")
 
-                callback(true)
+                callback(true, "")
             }.addOnFailureListener {
                 Log.e("Authentication", "Failed to log in!")
                 it.printStackTrace()
 
-                callback(false)
+                callback(false, it.localizedMessage)
             }.addOnCanceledListener {
-                callback(false)
+                callback(false, "Megszakítva")
             }
         }
     }
@@ -442,19 +455,21 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         return firebaseAuth.currentUser?.isEmailVerified ?: false
     }
 
-    private fun handleGoogleLogin(user: GoogleSignInAccount, callback: (success: Boolean) -> Unit) {
+    private fun handleGoogleLogin(user: GoogleSignInAccount, callback: (success: Boolean, message: String) -> Unit) {
         val credential: AuthCredential = GoogleAuthProvider.getCredential(user.idToken, null)
+        Log.i("Authentication", "Google getCredentials")
+
         firebaseAuth.signInWithCredential(credential).addOnSuccessListener {
             Log.i("Authentication", "User successfully signed in!")
 
-            callback(true)
-        } .addOnFailureListener {
+            callback(true, "")
+        }.addOnFailureListener {
             Log.e("Authentication", "Failed to log in!")
             it.printStackTrace()
 
-            callback(false)
+            callback(false, it.localizedMessage)
         }.addOnCanceledListener {
-            callback(false)
+            callback(false, "Megszakítva")
         }
     }
 
@@ -468,7 +483,21 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         }
 
         override fun getDisplayName(): String {
-            return firebaseUser.displayName!!
+            return firebaseUser.displayName ?: firebaseUser.email ?: ""
+        }
+
+        override fun isEmailVerified(): Boolean {
+            return firebaseUser.isEmailVerified
+        }
+
+        override fun refresh(callback: (success: Boolean, message: String) -> Unit) {
+            firebaseUser.reload().addOnCompleteListener {
+                callback(true, "")
+            }.addOnFailureListener {
+                callback(false, it.localizedMessage)
+            }.addOnCanceledListener {
+                callback(false, "Megszakítva")
+            }
         }
     }
 }

@@ -32,7 +32,8 @@ class GuiTextInput(
     private val textRenderer: TextRenderer = game.textRenderer
     private val textInputProvider: TextInputProvider = game.textInputProvider
 
-    private var text = ""
+    var text = ""
+    private var renderText = ""
     private val suffix = ""
 
     private var bounds: Rectangle? = null
@@ -76,10 +77,12 @@ class GuiTextInput(
 
         normalTexture!!.draw(spriteBatch, x, y, width, height)
 
+        renderText = if(type !== TextInputProvider.InputType.PASSWORD) text else "*".repeat(text.length)
+
         if (text.isEmpty() && !placeholder.isEmpty() && focusedElement !== this) {
             textRenderer.drawCenteredText(placeholder, x + width / 2, y + height / 2 + 3f, 26, "Roboto", FontStyle.NORMAL, Color.LIGHT_GRAY)
         } else {
-            textRenderer.drawCenteredText("$text $suffix", x + width / 2, y + height / 2 + 3f, 26, "Roboto", FontStyle.NORMAL, Color.WHITE)
+            textRenderer.drawCenteredText("$renderText $suffix", x + width / 2, y + height / 2 + 3f, 26, "Roboto", FontStyle.NORMAL, Color.WHITE)
         }
     }
 

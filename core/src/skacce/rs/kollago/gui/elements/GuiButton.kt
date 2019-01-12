@@ -32,6 +32,7 @@ class GuiButton(override val x: Float, override val y: Float, override val width
     private var touching: Boolean = false
 
     var visible: Boolean = true
+    var enabled: Boolean = true
     var catchBackKey: Boolean = false
 
     override fun create() {
@@ -60,21 +61,21 @@ class GuiButton(override val x: Float, override val y: Float, override val width
 
         bounds.set(x, y, width, height)
 
-        if (touching) {
+        if (touching || !enabled) {
             hoverTexture.draw(spriteBatch, x, y, width, height)
         } else {
             normalTexture.draw(spriteBatch, x, y, width, height)
         }
 
-        textRenderer.drawCenteredText(text, x + width / 2, y + height / 2, style.fontSize, style.fontName, style.fontStyle, style.fontColor)
+        textRenderer.drawCenteredText(text, x + width / 2, y + height / 2, style.fontSize, style.fontName, style.fontStyle, if(enabled) style.fontColor else style.disabledColor)
 
-        if (catchBackKey && Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
+        if (catchBackKey && Gdx.input.isKeyJustPressed(Input.Keys.BACK) && visible && enabled) {
             clickHandler(false)
         }
     }
 
     override fun tap(x: Float, y: Float, count: Int, button: Int): Boolean {
-        if (!bounds.contains(x, y) || !::clickHandler.isInitialized || !visible) {
+        if (!bounds.contains(x, y) || !::clickHandler.isInitialized || !visible || !enabled) {
             return false
         }
 
@@ -84,7 +85,7 @@ class GuiButton(override val x: Float, override val y: Float, override val width
     }
 
     override fun longPress(x: Float, y: Float): Boolean {
-        if (!bounds.contains(x, y) || !::clickHandler.isInitialized || !visible) {
+        if (!bounds.contains(x, y) || !::clickHandler.isInitialized || !visible || !enabled) {
             return false
         }
 
@@ -94,7 +95,7 @@ class GuiButton(override val x: Float, override val y: Float, override val width
     }
 
     override fun touchDown(x: Int, y: Int, pointer: Int, button: Int): Boolean {
-        if (!bounds.contains(x.toFloat(), y.toFloat()) || !visible) {
+        if (!bounds.contains(x.toFloat(), y.toFloat()) || !visible || !enabled) {
             return false
         }
 
@@ -109,5 +110,5 @@ class GuiButton(override val x: Float, override val y: Float, override val width
         return true
     }
 
-    data class Style(val fontName: String = "Roboto", val fontSize: Int = 30, val fontStyle: FontStyle = FontStyle.NORMAL, val fontColor: Color = Color.WHITE)
+    data class Style(val fontName: String = "Roboto", val fontSize: Int = 30, val fontStyle: FontStyle = FontStyle.NORMAL, val fontColor: Color = Color.WHITE, val disabledColor: Color = Color.LIGHT_GRAY)
 }

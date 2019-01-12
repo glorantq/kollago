@@ -8,6 +8,8 @@ import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.input.GestureDetector
 import com.badlogic.gdx.utils.viewport.ExtendViewport
+import de.tomgrill.gdxdialogs.core.GDXDialogs
+import de.tomgrill.gdxdialogs.core.GDXDialogsSystem
 import ktx.math.vec2
 import skacce.rs.kollago.ar.ARWorld
 import skacce.rs.kollago.graphics.TextureLoadingPerformer
@@ -16,6 +18,7 @@ import skacce.rs.kollago.graphics.text.Font
 import skacce.rs.kollago.graphics.text.TextRenderer
 import skacce.rs.kollago.input.GdxInputHandler
 import skacce.rs.kollago.input.text.TextInputProvider
+import skacce.rs.kollago.network.AuthenticationLoadingPerformer
 import skacce.rs.kollago.screens.LoadingScreen
 import skacce.rs.kollago.screens.LoginScreen
 import kotlin.concurrent.thread
@@ -28,8 +31,15 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
         const val MAP_RESOLUTION: Float = 1024f
         const val MAP_SCALE: Float = 1f
 
-        var SAFE_AREA_OFFSET: Int = 0
-            private set
+        private var hiddenAreaOffset: Int = -1
+
+        var SAFE_AREA_OFFSET: Int
+            get() = hiddenAreaOffset
+            private set(value) {
+                if(hiddenAreaOffset == -1) {
+                    hiddenAreaOffset = value
+                }
+            }
 
         private var hiddenInstance: KollaGO? = null
 
@@ -68,7 +78,12 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
     lateinit var inputHandler: GdxInputHandler
         private set
 
+    lateinit var dialogs: GDXDialogs
+        private set
+
     override fun create() {
+        dialogs = GDXDialogsSystem.install()
+
         Gdx.app.log("KollaGO", "Setting up 2D graphics...")
 
         staticViewport = ExtendViewport(WIDTH, HEIGHT)
@@ -93,11 +108,13 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
         Gdx.app.log("KollaGO", "Setting up 3D graphics...")
 
         setScreen(LoadingScreen(TextureLoadingPerformer(assetManager)) {
-            /*if(platform.isLoggedIn()) {
-                setScreen(ARWorld())
-            } else {*/
+            if(platform.isLoggedIn()) {
+                setScreen(LoadingScreen(AuthenticationLoadingPerformer()) {
+                    setScreen(ARWorld())
+                }) // TODO
+            } else {
                 setScreen(LoginScreen())
-            //}
+            }
         })
     }
 

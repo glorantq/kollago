@@ -2,7 +2,7 @@ package skacce.rs.kollago.input.text
 
 interface TextInputProvider {
     enum class InputType {
-        TEXT, NUMBER
+        TEXT, NUMBER, PASSWORD
     }
 
     fun registerListener(textInputListener: TextInputListener)

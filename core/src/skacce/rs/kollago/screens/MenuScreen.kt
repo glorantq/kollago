@@ -9,15 +9,15 @@ import skacce.rs.kollago.graphics.TextureManager
 import skacce.rs.kollago.gui.GuiScreen
 
 open class MenuScreen : GuiScreen() {
-    protected lateinit var viewport: Viewport
+    protected var viewport: Viewport
 
-    private lateinit var backgroundTexture: Texture
+    private var backgroundTexture: Texture
     private lateinit var backgroundSize: Vector2
 
-    private lateinit var logoTexture: Texture
+    private var logoTexture: Texture
     private lateinit var logoSize: Vector2
 
-    override fun show() {
+    init {
         val game: KollaGO = KollaGO.INSTANCE
 
         viewport = game.staticViewport
@@ -27,6 +27,11 @@ open class MenuScreen : GuiScreen() {
         backgroundTexture = textureManager["gui/background.png"]
 
         scaleBackground()
+        scaleLogo()
+    }
+
+    override fun show() {
+
     }
 
     override fun draw(spriteBatch: SpriteBatch) {
@@ -42,10 +47,6 @@ open class MenuScreen : GuiScreen() {
 
     private fun drawLogo(spriteBatch: SpriteBatch) {
         spriteBatch.draw(logoTexture, viewport.worldWidth / 2 - logoSize.x / 2, viewport.worldHeight - logoSize.y - 20f - KollaGO.SAFE_AREA_OFFSET, logoSize.x, logoSize.y)
-    }
-
-    override fun hide() {
-
     }
 
     private fun scaleBackground() {
