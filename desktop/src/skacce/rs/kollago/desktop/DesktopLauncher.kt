@@ -100,6 +100,10 @@ class DesktopLauncher : Platform, TextInputProvider {
         override fun refresh(callback: (success: Boolean, message: String) -> Unit) {
             callback(false, "")
         }
+
+        override fun sendVerificationEmail() {
+
+        }
     }
 }
 

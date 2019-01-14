@@ -29,7 +29,7 @@ class LoadingScreen(private val performer: LoadingPerformer, private val onLoadC
 
         performer.performLoading()
 
-        textRenderer.drawCenteredText("${performer.action} ${performer.loadingProgress}% done", viewport.worldWidth / 2, 32f, 32, "Roboto", FontStyle.NORMAL, Color.WHITE)
+        textRenderer.drawCenteredText("${performer.action} ${performer.loadingProgress}%", viewport.worldWidth / 2, 32f, 32, "Roboto", FontStyle.NORMAL, Color.WHITE)
     }
 
     interface LoadingPerformer {

@@ -5,11 +5,9 @@ import com.badlogic.gdx.math.Vector2
 import de.tomgrill.gdxdialogs.core.dialogs.GDXButtonDialog
 import ktx.math.vec2
 import skacce.rs.kollago.KollaGO
-import skacce.rs.kollago.ar.ARWorld
 import skacce.rs.kollago.gui.elements.GuiButton
 import skacce.rs.kollago.gui.elements.GuiTextInput
 import skacce.rs.kollago.input.text.TextInputProvider
-import skacce.rs.kollago.network.AuthenticationLoadingPerformer
 
 class EmailRegisterScreen : MenuScreen() {
     private lateinit var passwordInput: GuiTextInput
@@ -41,9 +39,7 @@ class EmailRegisterScreen : MenuScreen() {
         registerButton.clickHandler = {
             KollaGO.INSTANCE.platform.performEmailAuth(emailInput.text, passwordInput.text, true) { success, message ->
                 if(success) {
-                    KollaGO.INSTANCE.screen = LoadingScreen(AuthenticationLoadingPerformer()) {
-                        KollaGO.INSTANCE.screen = ARWorld()
-                    } // TODO
+                    KollaGO.INSTANCE.networkManager.beginLoginSequence()
                 } else {
                     val dialog: GDXButtonDialog = KollaGO.INSTANCE.dialogs.newDialog(GDXButtonDialog::class.java)
                     dialog.setTitle("Regisztráció")

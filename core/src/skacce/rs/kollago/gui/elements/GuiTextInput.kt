@@ -77,7 +77,7 @@ class GuiTextInput(
 
         normalTexture!!.draw(spriteBatch, x, y, width, height)
 
-        renderText = if(type !== TextInputProvider.InputType.PASSWORD) text else "*".repeat(text.length)
+        renderText = if(type !== TextInputProvider.InputType.PASSWORD) text else "\u2022".repeat(text.length)
 
         if (text.isEmpty() && !placeholder.isEmpty() && focusedElement !== this) {
             textRenderer.drawCenteredText(placeholder, x + width / 2, y + height / 2 + 3f, 26, "Roboto", FontStyle.NORMAL, Color.LIGHT_GRAY)

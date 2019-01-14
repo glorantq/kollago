@@ -24,6 +24,8 @@ interface Platform {
         fun getEMail(): String
         fun getDisplayName(): String
         fun isEmailVerified(): Boolean
+
         fun refresh(callback: (success: Boolean, message: String) -> Unit)
+        fun sendVerificationEmail()
     }
 }

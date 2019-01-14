@@ -18,7 +18,7 @@ import skacce.rs.kollago.input.InputHandler
 
 import java.util.function.Consumer
 
-class GuiButton(override val x: Float, override val y: Float, override val width: Float, override val height: Float, private val text: String, private val style: Style) : GuiElement, InputHandler {
+class GuiButton(override val x: Float, override val y: Float, override val width: Float, override val height: Float, var text: String, private val style: Style) : GuiElement, InputHandler {
     private lateinit var inputHandler: GdxInputHandler
     private lateinit var textRenderer: TextRenderer
 

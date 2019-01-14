@@ -499,5 +499,9 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
                 callback(false, "Megszakítva")
             }
         }
+
+        override fun sendVerificationEmail() {
+            firebaseUser.sendEmailVerification()
+        }
     }
 }

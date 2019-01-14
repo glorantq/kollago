@@ -46,6 +46,6 @@ class Font(val name: String, normalPath: String?, italicPath: String?, boldPath:
     }
 
     companion object {
-        private const val CHARSET = "0123456789qwertzuiopőúasdfghjkléáűíyxcvbnmöüóÖÜÓQWERTZUIOPŐÚASDFGHJKLÉÁŰÍYXCVBNM,.-?:_;>*\\|\$ß@&#><{}'\"+!%/=()©²"
+        private const val CHARSET = "0123456789qwertzuiopőúasdfghjkléáűíyxcvbnmöüóÖÜÓQWERTZUIOPŐÚASDFGHJKLÉÁŰÍYXCVBNM,.-?:_;>*\\|\$ß@&#><{}'\"+!%/=()©²\u2022"
     }
 }

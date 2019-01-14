@@ -11,17 +11,15 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport
 import de.tomgrill.gdxdialogs.core.GDXDialogs
 import de.tomgrill.gdxdialogs.core.GDXDialogsSystem
 import ktx.math.vec2
-import skacce.rs.kollago.ar.ARWorld
 import skacce.rs.kollago.graphics.TextureLoadingPerformer
 import skacce.rs.kollago.graphics.TextureManager
 import skacce.rs.kollago.graphics.text.Font
 import skacce.rs.kollago.graphics.text.TextRenderer
 import skacce.rs.kollago.input.GdxInputHandler
 import skacce.rs.kollago.input.text.TextInputProvider
-import skacce.rs.kollago.network.AuthenticationLoadingPerformer
+import skacce.rs.kollago.network.NetworkManager
 import skacce.rs.kollago.screens.LoadingScreen
 import skacce.rs.kollago.screens.LoginScreen
-import kotlin.concurrent.thread
 
 class KollaGO private constructor(val platform: Platform, val textInputProvider: TextInputProvider) : Game() {
     companion object {
@@ -81,6 +79,9 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
     lateinit var dialogs: GDXDialogs
         private set
 
+    lateinit var networkManager: NetworkManager
+        private set
+
     override fun create() {
         dialogs = GDXDialogsSystem.install()
 
@@ -105,13 +106,12 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
         Gdx.input.isCatchBackKey = true
 
         Gdx.app.log("KollaGO", "2D setup complete!")
-        Gdx.app.log("KollaGO", "Setting up 3D graphics...")
+
+        networkManager = NetworkManager()
 
         setScreen(LoadingScreen(TextureLoadingPerformer(assetManager)) {
             if(platform.isLoggedIn()) {
-                setScreen(LoadingScreen(AuthenticationLoadingPerformer()) {
-                    setScreen(ARWorld())
-                }) // TODO
+                networkManager.beginLoginSequence()
             } else {
                 setScreen(LoginScreen())
             }
