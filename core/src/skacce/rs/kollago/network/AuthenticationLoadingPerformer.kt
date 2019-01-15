@@ -11,6 +11,7 @@ import skacce.rs.kollago.Platform
 import skacce.rs.kollago.screens.ConfirmEmailScreen
 import skacce.rs.kollago.screens.LoadingScreen
 import skacce.rs.kollago.screens.LoginScreen
+import skacce.rs.kollago.screens.RegistrationScreen
 import kotlin.concurrent.thread
 
 class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
@@ -63,22 +64,8 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
                             loadingProgress = 80
 
                             val currentPosition: GeoPoint = platform.getGpsPosition()
-                            val request: JSONObject = JSONObject()
-                            request["firebase_uid"] = it
-                            request["current_lat"] = currentPosition.latitude
-                            request["current_lon"] = currentPosition.longitude
-
-                            KollaGO.INSTANCE.networkManager.performPost("http://192.168.1.108:8080/login", request.toJSONString()) { success, data ->
-                                if(!success) {
-                                    failWithDialog("Bejelentkezés", "Nem sikerült kapcsolódni a szerverhez!")
-                                } else {
-                                    loadingProgress = 85
-
-                                    val response: JSONObject = JSONParser().parse(data) as JSONObject
-                                    val errorCode: Int = response["error_code"].toString().toInt()
-
-                                    handleLoginResponse(errorCode, it)
-                                }
+                            KollaGO.INSTANCE.networkManager.tryApiLogin(it, currentPosition) { errorCode, _ ->
+                                handleLoginResponse(errorCode, it)
                             }
                         }
                     }
@@ -91,13 +78,14 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
 
     private fun handleLoginResponse(code: Int, uid: String) {
         when(code) {
+            -1 -> failWithDialog("KollaGO Szerver", "Nem lehet elérni a központi szervert!")
             1 -> failWithDialog("Bejelentkezés", "Szerverhiba")
             3 -> failWithDialog("Bejelentkezés", "Hitelesítési hiba")
             4 -> failWithDialog("Bejelentkezés", "Hibás UID")
             5 -> failWithDialog("Bejelentkezés", "Hibás pozíció")
 
             6 -> setScreen(ConfirmEmailScreen())
-            7 -> failWithDialog("Regisztráció", "nicht yet") // Registration needed TODO
+            7 -> setScreen(RegistrationScreen(uid))
 
             0 -> {
                 loadingProgress = 100

@@ -7,9 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Rect
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
+import android.location.*
 import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.support.v4.app.ActivityCompat
@@ -475,6 +473,16 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
     override fun getUser(): Platform.NativeAuthUser {
         return FirebaseAuthUser(firebaseAuth.currentUser!!)
+    }
+
+    override fun backupGeocode(position: GeoPoint): String {
+        val geocoder: Geocoder = Geocoder(this)
+
+        val results: List<Address> = geocoder.getFromLocation(position.latitude, position.longitude, 1)
+
+        return with(results[0]) {
+            (0..this.maxAddressLineIndex).map { getAddressLine(it).replace("\n", "") }
+        }.joinToString(", ")
     }
 
     class FirebaseAuthUser(private val firebaseUser: FirebaseUser) : Platform.NativeAuthUser {

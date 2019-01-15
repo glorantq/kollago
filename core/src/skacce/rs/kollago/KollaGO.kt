@@ -120,7 +120,9 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
 
     override fun render() {
         Gdx.gl.glClearColor(0.55f, 0.72f, 1f, 1f)
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT or GL20.GL_STENCIL_BUFFER_BIT)
+
+        Gdx.gl.glStencilMask(0xFF)
 
         staticViewport.apply(true)
         spriteBatch.projectionMatrix = staticViewport.camera.combined

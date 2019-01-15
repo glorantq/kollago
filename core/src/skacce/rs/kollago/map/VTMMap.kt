@@ -65,6 +65,7 @@ class VTMMap(private val width: Int, private val height: Int) {
         GLState.enableVertexArrays(-1, -1)
         gl.disable(GL.DEPTH_TEST)
         gl.disable(GL.STENCIL_TEST)
+        gl.flush()
     }
 
     fun setTheme(theme: FileHandle) {

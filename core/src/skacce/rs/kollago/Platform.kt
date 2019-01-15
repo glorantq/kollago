@@ -20,6 +20,8 @@ interface Platform {
 
     fun logOut(callback: () -> Unit)
 
+    fun backupGeocode(position: GeoPoint): String
+
     interface NativeAuthUser {
         fun getEMail(): String
         fun getDisplayName(): String

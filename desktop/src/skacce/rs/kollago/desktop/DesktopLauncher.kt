@@ -84,6 +84,10 @@ class DesktopLauncher : Platform, TextInputProvider {
         return DesktopUser()
     }
 
+    override fun backupGeocode(position: GeoPoint): String {
+        return ""
+    }
+
     class DesktopUser : Platform.NativeAuthUser {
         override fun getEMail(): String {
             return ""
