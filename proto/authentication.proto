@@ -16,3 +16,11 @@ message LoginResponse {
     }
 }
 
+message ProfileRequest {
+	string firebaseUid = 1;
+	string gameSecret = 2;
+}
+
+message ProfileResponse {
+	ProfileData profile = 1;
+}

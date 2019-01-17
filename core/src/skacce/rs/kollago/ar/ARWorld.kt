@@ -3,10 +3,7 @@ package skacce.rs.kollago.ar
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.Screen
-import com.badlogic.gdx.graphics.GL20
-import com.badlogic.gdx.graphics.Mesh
-import com.badlogic.gdx.graphics.PerspectiveCamera
-import com.badlogic.gdx.graphics.Pixmap
+import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
@@ -18,11 +15,14 @@ import com.badlogic.gdx.graphics.glutils.FrameBuffer
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
+import skacce.rs.kollago.graphics.text.FontStyle
 import skacce.rs.kollago.map.VTMMap
 import skacce.rs.kollago.utils.ARUtils
+import skacce.rs.kollago.utils.newInstance
 import java.util.*
 
 class ARWorld : Screen {
@@ -169,6 +169,8 @@ class ARWorld : Screen {
         KollaGO.INSTANCE.staticViewport.apply(true)
         KollaGO.INSTANCE.spriteBatch.projectionMatrix = KollaGO.INSTANCE.staticViewport.camera.combined
         KollaGO.INSTANCE.spriteBatch.begin()
+
+        KollaGO.INSTANCE.textRenderer.drawWrappedText(KollaGO.INSTANCE.networkManager.ownProfile.toString(), 10f, worldViewport.worldHeight - 100, 36, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
     }
 
     override fun resize(width: Int, height: Int) {

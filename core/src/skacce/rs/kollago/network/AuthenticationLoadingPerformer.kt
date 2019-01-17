@@ -26,7 +26,7 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
             if (!platform.checkGpsState()) {
                 val success: Boolean = platform.initGps().get()
 
-                loadingProgress = 25
+                loadingProgress = 20
 
                 if(!success) {
                     Gdx.app.exit()
@@ -39,7 +39,7 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
                 return@thread
             }
 
-            loadingProgress = 50
+            loadingProgress = 40
 
             val user: Platform.NativeAuthUser = platform.getUser()
 
@@ -51,7 +51,7 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
                         return@refresh
                     }
 
-                    loadingProgress = 75
+                    loadingProgress = 60
 
                     platform.getFirebaseUID {
                         if (it.isBlank()) {
@@ -64,8 +64,8 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
                             loadingProgress = 80
 
                             val currentPosition: GeoPoint = platform.getGpsPosition()
-                            KollaGO.INSTANCE.networkManager.tryApiLogin(it, currentPosition) { errorCode, _ ->
-                                handleLoginResponse(errorCode, it)
+                            KollaGO.INSTANCE.networkManager.tryApiLogin(it, currentPosition) { errorCode, message ->
+                                handleLoginResponse(errorCode, it, message)
                             }
                         }
                     }
@@ -76,7 +76,7 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
         }
     }
 
-    private fun handleLoginResponse(code: Int, uid: String) {
+    private fun handleLoginResponse(code: Int, uid: String, message: String) {
         when(code) {
             -1 -> failWithDialog("KollaGO Szerver", "Nem lehet elérni a központi szervert!")
             1 -> failWithDialog("Bejelentkezés", "Szerverhiba")
@@ -88,9 +88,14 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
             7 -> setScreen(RegistrationScreen(uid))
 
             0 -> {
+                val jsonRoot: JSONObject = JSONParser().parse(message) as JSONObject
+                KollaGO.INSTANCE.networkManager.nominatimAddress = jsonRoot["nominatim"].toString()
+                KollaGO.INSTANCE.networkManager.gameServerAddress = jsonRoot["game_server"].toString()
+                KollaGO.INSTANCE.networkManager.firebaseUid = uid
+
                 loadingProgress = 100
                 done = true
-            } // Success TODO
+            }
         }
     }
 

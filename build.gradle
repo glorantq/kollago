@@ -155,6 +155,7 @@ project(":core") {
         compile 'com.fasterxml.jackson.core:jackson-databind:2.9.4'
         compile 'com.google.code.gson:gson:2.8.5'
         compile group: 'com.google.guava', name: 'guava', version: '27.0.1-android'
+        compile group: 'com.esotericsoftware', name: 'kryonet', version: '2.22.0-RC1'
 
         compile "io.github.libktx:ktx-collections:1.9.8-b5"
         compile "io.github.libktx:ktx-math:1.9.8-b5"
