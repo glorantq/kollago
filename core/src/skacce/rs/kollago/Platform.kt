@@ -22,6 +22,9 @@ interface Platform {
 
     fun backupGeocode(position: GeoPoint): String
 
+    fun updateRemoteConfig(callback: (success: Boolean) -> Unit)
+    fun getRemoteString(key: String, default: String): String
+
     interface NativeAuthUser {
         fun getEMail(): String
         fun getDisplayName(): String

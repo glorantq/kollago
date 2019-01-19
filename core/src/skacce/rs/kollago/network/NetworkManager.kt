@@ -7,17 +7,20 @@ import org.json.simple.parser.JSONParser
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.ar.ARWorld
+import skacce.rs.kollago.network.handlers.GameplayNetworkHandler
 import skacce.rs.kollago.network.protocol.*
 import skacce.rs.kollago.screens.LoadingScreen
 import java.io.IOException
 
 class NetworkManager {
-    private val apiUrl: String = "http://central.kollago.skacce.rs:8080"
+    private val apiUrl: String = KollaGO.INSTANCE.platform.getRemoteString("central_api_address", "localhost")
     var gameServerAddress: String = ""
     var nominatimAddress: String = ""
     var firebaseUid: String = ""
 
-    private lateinit var kryoClient: Client
+    lateinit var kryoClient: Client
+        private set
+
     lateinit var packetHandler: PacketHandler
         private set
 
@@ -96,7 +99,7 @@ class NetworkManager {
             kryoClient.dispose()
         }
 
-        kryoClient = Client()
+        kryoClient = Client(100 * 1024, 100 * 1024)
         packetHandler = PacketHandler(kryoClient.kryo)
 
         // common.proto
@@ -115,7 +118,7 @@ class NetworkManager {
 
         packetHandler.registerPacket(NearStops::class)
         packetHandler.registerPacket(NearBases::class)
-        packetHandler.registerHandler { connection, packet: NearFeaturesResponse, responseId -> }
+        packetHandler.registerHandler(GameplayNetworkHandler.handleFeatureResponse)
 
         kryoClient.addListener(packetHandler)
         kryoClient.start()

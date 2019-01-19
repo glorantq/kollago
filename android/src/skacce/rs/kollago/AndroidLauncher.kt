@@ -41,6 +41,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.perf.FirebasePerformance
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import org.oscim.android.canvas.AndroidGraphics
 import org.oscim.backend.GLAdapter
 import org.oscim.core.GeoPoint
@@ -70,6 +71,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
     private lateinit var firebaseAuth: FirebaseAuth
     private lateinit var googleClient: GoogleSignInClient
+    private lateinit var remoteConfig: FirebaseRemoteConfig
 
     private val googleRequestMap: MutableMap<Int, (Boolean, String) -> Unit> = hashMapOf()
 
@@ -85,6 +87,8 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
                 .build()
 
         googleClient = GoogleSignIn.getClient(this, signInOptions)
+
+        remoteConfig = FirebaseRemoteConfig.getInstance()
 
         AndroidGraphics.init()
         GdxAssets.init("")
@@ -511,5 +515,20 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         override fun sendVerificationEmail() {
             firebaseUser.sendEmailVerification()
         }
+    }
+
+    override fun updateRemoteConfig(callback: (success: Boolean) -> Unit) {
+        remoteConfig.fetch().addOnCompleteListener {
+            remoteConfig.activateFetched()
+            callback(true)
+        }.addOnFailureListener {
+            callback(false)
+        }
+    }
+
+    override fun getRemoteString(key: String, default: String): String {
+        remoteConfig.setDefaults(mapOf(key to default))
+
+        return remoteConfig.getString(key)
     }
 }

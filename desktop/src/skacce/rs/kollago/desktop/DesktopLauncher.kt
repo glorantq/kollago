@@ -88,6 +88,14 @@ class DesktopLauncher : Platform, TextInputProvider {
         return ""
     }
 
+    override fun getRemoteString(key: String, default: String): String {
+        return default
+    }
+
+    override fun updateRemoteConfig(callback: (success: Boolean) -> Unit) {
+        callback(true)
+    }
+
     class DesktopUser : Platform.NativeAuthUser {
         override fun getEMail(): String {
             return ""

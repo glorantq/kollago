@@ -23,61 +23,68 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
         thread {
             val platform: Platform = KollaGO.INSTANCE.platform
 
-            if (!platform.checkGpsState()) {
-                val success: Boolean = platform.initGps().get()
+            platform.updateRemoteConfig {
+                if (!it) {
+                    failWithDialog("Firebase", "Nem elérhető A Firebase szerver!")
+                    return@updateRemoteConfig
+                } else {
+                    if (!platform.checkGpsState()) {
+                        val success: Boolean = platform.initGps().get()
 
-                loadingProgress = 20
+                        loadingProgress = 20
 
-                if(!success) {
-                    Gdx.app.exit()
-                    return@thread
-                }
-            }
-
-            if (!platform.isLoggedIn()) {
-                KollaGO.INSTANCE.screen = LoginScreen()
-                return@thread
-            }
-
-            loadingProgress = 40
-
-            val user: Platform.NativeAuthUser = platform.getUser()
-
-            user.refresh { success, message ->
-                if(success) {
-                    if (!user.isEmailVerified()) {
-                        setScreen(ConfirmEmailScreen())
-
-                        return@refresh
+                        if (!success) {
+                            Gdx.app.exit()
+                            return@updateRemoteConfig
+                        }
                     }
 
-                    loadingProgress = 60
+                    if (!platform.isLoggedIn()) {
+                        KollaGO.INSTANCE.screen = LoginScreen()
+                        return@updateRemoteConfig
+                    }
 
-                    platform.getFirebaseUID {
-                        if (it.isBlank()) {
-                            Gdx.app.postRunnable {
-                                platform.logOut {
-                                    KollaGO.INSTANCE.screen = LoginScreen()
+                    loadingProgress = 40
+
+                    val user: Platform.NativeAuthUser = platform.getUser()
+
+                    user.refresh { success, message ->
+                        if (success) {
+                            if (!user.isEmailVerified()) {
+                                setScreen(ConfirmEmailScreen())
+
+                                return@refresh
+                            }
+
+                            loadingProgress = 60
+
+                            platform.getFirebaseUID {
+                                if (it.isBlank()) {
+                                    Gdx.app.postRunnable {
+                                        platform.logOut {
+                                            KollaGO.INSTANCE.screen = LoginScreen()
+                                        }
+                                    }
+                                } else {
+                                    loadingProgress = 80
+
+                                    val currentPosition: GeoPoint = platform.getGpsPosition()
+                                    KollaGO.INSTANCE.networkManager.tryApiLogin(it, currentPosition) { errorCode, message ->
+                                        handleLoginResponse(errorCode, it, message)
+                                    }
                                 }
                             }
                         } else {
-                            loadingProgress = 80
-
-                            val currentPosition: GeoPoint = platform.getGpsPosition()
-                            KollaGO.INSTANCE.networkManager.tryApiLogin(it, currentPosition) { errorCode, message ->
-                                handleLoginResponse(errorCode, it, message)
-                            }
+                            failWithDialog("Fiók Frissítése", message)
                         }
                     }
-                } else {
-                    failWithDialog("Fiók Frissítése", message)
                 }
             }
         }
     }
 
     private fun handleLoginResponse(code: Int, uid: String, message: String) {
-        when(code) {
+        when (code) {
             -1 -> failWithDialog("KollaGO Szerver", "Nem lehet elérni a központi szervert!")
             1 -> failWithDialog("Bejelentkezés", "Szerverhiba")
             3 -> failWithDialog("Bejelentkezés", "Hitelesítési hiba")
