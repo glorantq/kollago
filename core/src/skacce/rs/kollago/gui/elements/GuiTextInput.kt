@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.g2d.NinePatch
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.Rectangle
 import skacce.rs.kollago.KollaGO
+import skacce.rs.kollago.graphics.RepeatedNinePatch
 import skacce.rs.kollago.graphics.TextureManager
 import skacce.rs.kollago.graphics.text.FontStyle
 import skacce.rs.kollago.graphics.text.TextRenderer
@@ -38,7 +39,7 @@ class GuiTextInput(
 
     private var bounds: Rectangle? = null
 
-    private var normalTexture: NinePatch? = null
+    private var normalTexture: RepeatedNinePatch? = null
 
     var isVisible = true
 
@@ -53,8 +54,7 @@ class GuiTextInput(
     override fun create() {
         inputHandler.addInputHandler(this)
 
-        val textureManager: TextureManager = game.textureManager
-        normalTexture = NinePatch(textureManager["gui/text_input.png"], 40, 40, 40, 40)
+        normalTexture = RepeatedNinePatch("gui/text_input.png", "gui/text_input_repeat.png", width.toInt(), 47, 47, 50, 50)
 
         if (!registeredListener) {
             registeredListener = true

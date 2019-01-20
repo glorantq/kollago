@@ -25,6 +25,10 @@ interface Platform {
     fun updateRemoteConfig(callback: (success: Boolean) -> Unit)
     fun getRemoteString(key: String, default: String): String
 
+    fun tracedLog(tag: String, message: String)
+
+    fun debugString(): String
+
     interface NativeAuthUser {
         fun getEMail(): String
         fun getDisplayName(): String

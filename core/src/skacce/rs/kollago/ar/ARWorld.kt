@@ -4,13 +4,14 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.Screen
 import com.badlogic.gdx.graphics.*
+import com.badlogic.gdx.graphics.g2d.NinePatch
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.Model
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
-import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController
 import com.badlogic.gdx.graphics.glutils.FrameBuffer
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
@@ -18,19 +19,19 @@ import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Align
+import com.badlogic.gdx.utils.BufferUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
+import ktx.math.vec2
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
+import skacce.rs.kollago.ar.poi.PlayerBase
+import skacce.rs.kollago.ar.poi.RewardStop
 import skacce.rs.kollago.graphics.text.FontStyle
 import skacce.rs.kollago.map.VTMMap
 import skacce.rs.kollago.network.NetworkManager
-import skacce.rs.kollago.network.protocol.Coordinates
-import skacce.rs.kollago.network.protocol.NearStops
-import skacce.rs.kollago.network.protocol.StopData
-import skacce.rs.kollago.utils.ARUtils
-import skacce.rs.kollago.utils.newInstance
-import skacce.rs.kollago.utils.toCoordinates
-import skacce.rs.kollago.utils.toGeoPoint
+import skacce.rs.kollago.network.protocol.*
+import skacce.rs.kollago.utils.*
+import java.nio.IntBuffer
 import java.util.*
 
 class ARWorld : Screen {
@@ -64,7 +65,17 @@ class ARWorld : Screen {
     private val selectedModel: PlayerModel = playerModels[networkManager.ownProfile.model.value]
     private val animationController: AnimationController = AnimationController(selectedModel.modelInstance)
 
-    private val stopModel: Model = ARUtils.loadExternalModel(Gdx.files.internal("random/random.g3db"))
+    private val playerPortraits: Array<Texture> = arrayOf(
+            game.textureManager["portrait/0.png"],
+            game.textureManager["portrait/1.png"]
+    )
+
+    private val levelProgress: Array<NinePatch> = arrayOf(
+            NinePatch(game.textureManager["gui/level_progress_0.png"], 4, 4, 4, 4),
+            NinePatch(game.textureManager["gui/level_progress_1.png"], 4, 4, 4, 4)
+    )
+
+    private val profileBg: NinePatch = NinePatch(game.textureManager["gui/profile_bg.png"], 45, 45, 45, 45)
 
     private var useCompassRotation: Boolean = true
     private var playerRotation: Float = 0f
@@ -76,6 +87,7 @@ class ARWorld : Screen {
     private var targetPoint: GeoPoint? = null
 
     private val loadedStops: MutableMap<String, RewardStop> = hashMapOf()
+    private val loadedBases: MutableMap<String, PlayerBase> = hashMapOf()
     private var lastUpdatePoint: GeoPoint
 
     private var selectedStop: StopData = StopData()
@@ -90,7 +102,6 @@ class ARWorld : Screen {
         camera.update()
 
         environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.9f, 0.9f, 0.9f, 1f))
-        environment.add(DirectionalLight().set(0.2f, 0.2f, 0.2f, -1f, -0.8f, -0.2f))
 
         skyModelInstance.materials.get(0).set(IntAttribute(IntAttribute.CullFace, 0))
 
@@ -159,6 +170,29 @@ class ARWorld : Screen {
             }
         }
 
+
+        var lowestPlayerOpacity: Float = 1f
+        synchronized(loadedBases) {
+            loadedBases.forEach {
+                it.value.render(modelBatch, environment)
+
+                val playerOpacity: Float = it.value.geoPoint.sphericalDistance(vtmMap.getLocation()).toFloat() / 25f
+                if(playerOpacity < lowestPlayerOpacity) {
+                    lowestPlayerOpacity = playerOpacity
+                }
+            }
+        }
+
+        if(lowestPlayerOpacity <= 0.1f) {
+            lowestPlayerOpacity = 0.1f
+        }
+
+        modelBatch.flush()
+
+        selectedModel.modelInstance.materials.forEach {
+            it.set(BlendingAttribute(lowestPlayerOpacity))
+        }
+
         modelBatch.render(selectedModel.modelInstance, environment)
 
         modelBatch.end()
@@ -203,7 +237,33 @@ class ARWorld : Screen {
         game.spriteBatch.projectionMatrix = KollaGO.INSTANCE.staticViewport.camera.combined
         game.spriteBatch.begin()
 
-        game.textRenderer.drawWrappedText(selectedStop.toString(), 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
+        val profile: ProfileData = game.networkManager.ownProfile
+        val lvSize: Vector2 = game.textRenderer.getTextSize("lv", "Roboto", FontStyle.NORMAL, 24)
+        val numSize: Vector2 = game.textRenderer.getTextSize("${profile.level().toInt()}", "Roboto", FontStyle.BOLD, 30)
+        val nameSize: Vector2 = game.textRenderer.getTextSize(profile.username, "Roboto", FontStyle.BOLD, 30)
+
+        var progressWidth: Float = 160f
+        val progressPosition: Vector2 = vec2(10f + lvSize.x + numSize.x + 15f, 40f + numSize.y / 2f - 8f)
+
+        val profileHeight: Float = 10f + nameSize.y + 5f + numSize.y + 40f
+        profileBg.draw(game.spriteBatch, 0f, 0f, lvSize.x + numSize.x + progressWidth + 10f + 5f + 40f, profileHeight)
+
+        game.spriteBatch.draw(playerPortraits[profile.model.value], 0f, profileHeight / 2, 64f, 64f, 128f, 128f, 1f, 1f, 0f, 0, 0, 512, 512, true, false)
+
+        game.textRenderer.drawText(profile.username, 10f, 10f, 30, "Roboto", FontStyle.BOLD, Color.WHITE, true)
+        game.textRenderer.drawText("lv", 10f, 10f + nameSize.y + 5f, 24, "Roboto", FontStyle.NORMAL, Color.WHITE, true)
+        game.textRenderer.drawText("${profile.level().toInt()}", 10f + lvSize.x + 5f, 10f + nameSize.y + 5f, 30, "Roboto", FontStyle.BOLD, Color.WHITE, true)
+
+        levelProgress[0].draw(game.spriteBatch, progressPosition.x, progressPosition.y, progressWidth, 16f)
+
+        progressWidth *= profile.levelProgress()
+        if(progressWidth >= 0.05) {
+            levelProgress[1].draw(game.spriteBatch, progressPosition.x, progressPosition.y, progressWidth, 16f)
+        }
+
+        /*val b: IntBuffer = BufferUtils.newIntBuffer(16)
+        Gdx.graphics.gL20.glGetIntegerv(GL20.GL_MAX_TEXTURE_SIZE, b)
+        game.textRenderer.drawWrappedText(selectedStop.toString() + game.platform.debugString() + "\nLevel: ${game.networkManager.ownProfile.level()}\n${game.networkManager.ownProfile.xpToNextLevel()}", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)*/
 
         if(Gdx.input.justTouched()) {
             synchronized(loadedStops) {
@@ -223,13 +283,23 @@ class ARWorld : Screen {
         }
     }
 
-    fun createStop(stop: StopData) {
+    fun createOrUpdateStop(stop: StopData) {
         synchronized(loadedStops) {
-            loadedStops[stop.stopId] = RewardStop(stopModel, stop.coordinates!!.toGeoPoint(), vtmMap, KollaGO.MAP_SCALE, stop)
+            loadedStops[stop.stopId] = RewardStop(stop.coordinates!!.toGeoPoint(), vtmMap, KollaGO.MAP_SCALE, stop)
         }
     }
 
-    private fun removeFarStops() {
+    fun createOrUpdateBase(base: BaseData) {
+        synchronized(loadedBases) {
+            if(loadedBases.containsKey(base.baseId)) {
+                loadedBases[base.baseId]!!.updateBackendData(base)
+            } else {
+                loadedBases[base.baseId] = PlayerBase(base, vtmMap, KollaGO.MAP_SCALE.toInt())
+            }
+        }
+    }
+
+    private fun removeFarFeatures() {
         synchronized(loadedStops) {
             val keysToRemove: MutableList<String> = arrayListOf()
             loadedStops.forEach {
@@ -244,12 +314,29 @@ class ARWorld : Screen {
 
             Gdx.app.log("ARWorld", "Removed ${keysToRemove.size} stops!")
         }
+
+        synchronized(loadedBases) {
+            val keysToRemove: MutableList<String> = arrayListOf()
+            loadedBases.forEach {
+                if(it.value.geoPoint.sphericalDistance((if(targetPoint != null) targetPoint else vtmMap.getLocation())!!) > 1000) {
+                    keysToRemove.add(it.key)
+                }
+            }
+
+            keysToRemove.forEach {
+                loadedBases.remove(it)
+            }
+
+            Gdx.app.log("ARWorld", "Removed ${keysToRemove.size} bases!")
+        }
     }
 
     private fun actualiseFeatures() {
         val location: Coordinates = (if(targetPoint != null) targetPoint else vtmMap.getLocation())!!.toCoordinates()
+
         networkManager.packetHandler.sendPacket(NearStops(networkManager.firebaseUid, location), "", networkManager.kryoClient)
-        removeFarStops()
+        networkManager.packetHandler.sendPacket(NearBases(networkManager.firebaseUid, location), "", networkManager.kryoClient)
+        removeFarFeatures()
 
         lastUpdatePoint = location.toGeoPoint()
         System.gc()

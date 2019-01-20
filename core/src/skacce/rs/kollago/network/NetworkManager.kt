@@ -13,7 +13,7 @@ import skacce.rs.kollago.screens.LoadingScreen
 import java.io.IOException
 
 class NetworkManager {
-    private val apiUrl: String = KollaGO.INSTANCE.platform.getRemoteString("central_api_address", "localhost")
+    private val apiUrl: String = KollaGO.INSTANCE.platform.getRemoteString("central_api_address", "http://central.kollago.skacce.rs:8080")
     var gameServerAddress: String = ""
     var nominatimAddress: String = ""
     var firebaseUid: String = ""

@@ -67,7 +67,7 @@ class ConfirmEmailScreen : MenuScreen() {
 
         textRenderer.drawCenteredText("E-Mail cím megerősítése", viewport.worldWidth / 2, viewport.worldHeight - viewport.worldHeight / 4, 46, "Roboto", FontStyle.BOLD, Color.WHITE)
         textRenderer.drawWrappedText("A folytatáshoz meg kell erősítened e-mail címedet. Regisztrációkor elküldtünk egy visszaigazoló linket, de amennyiben nem kaptad meg, itt újat igényelhetsz.", 20f, viewport.worldHeight - viewport.worldHeight / 4 - 46, 35, "Roboto", FontStyle.NORMAL, Color.WHITE, viewport.worldWidth - 40, Align.center)
-        textRenderer.drawCenteredText(KollaGO.INSTANCE.platform.getUser().getEMail(), viewport.worldWidth / 2, resendButton.y + resendButton.height + 20, 30, "Roboto", FontStyle.ITALIC, Color.LIGHT_GRAY)
+        textRenderer.drawCenteredText(KollaGO.INSTANCE.platform.getUser().getEMail(), viewport.worldWidth / 2, resendButton.y + resendButton.height + 30, 30, "Roboto", FontStyle.ITALIC, Color.LIGHT_GRAY)
 
         resendButton.enabled = resendTimeout <= 0
         if (resendTimeout > 0) {

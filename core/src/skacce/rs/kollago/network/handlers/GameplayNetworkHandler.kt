@@ -12,8 +12,14 @@ object GameplayNetworkHandler {
         val screen: Screen = KollaGO.INSTANCE.screen
 
         if(screen is ARWorld) {
-            packet.stopData.forEach {
-                screen.createStop(it)
+            Gdx.app.postRunnable {
+                packet.stopData.forEach {
+                    screen.createOrUpdateStop(it)
+                }
+
+                packet.baseData.forEach {
+                    screen.createOrUpdateBase(it)
+                }
             }
         }
 

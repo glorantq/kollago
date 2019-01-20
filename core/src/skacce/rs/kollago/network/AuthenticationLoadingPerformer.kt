@@ -23,62 +23,77 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
         thread {
             val platform: Platform = KollaGO.INSTANCE.platform
 
+            platform.tracedLog("Authentication", "Starting config refresh")
+
             platform.updateRemoteConfig {
                 if (!it) {
                     failWithDialog("Firebase", "Nem elérhető A Firebase szerver!")
                     return@updateRemoteConfig
                 } else {
+                    platform.tracedLog("Authentication", "Refreshed config, checking GPS...")
+
                     if (!platform.checkGpsState()) {
-                        val success: Boolean = platform.initGps().get()
-
-                        loadingProgress = 20
-
-                        if (!success) {
-                            Gdx.app.exit()
-                            return@updateRemoteConfig
+                        platform.tracedLog("Authentication", "Starting GPS init")
+                        platform.initGps().thenAccept {
+                            if (it) {
+                                platform.tracedLog("Authentication", "GPS init done")
+                                loadingProgress = 20
+                                continueLoginGPS()
+                            } else {
+                                platform.tracedLog("Authentication", "Failed to init GPS")
+                                failWithDialog("GPS", "Nem elérhető a GPS! Jobb hibaüzenet bitte")
+                            }
                         }
+                    } else {
+                        continueLoginGPS()
                     }
+                }
+            }
+        }
+    }
 
-                    if (!platform.isLoggedIn()) {
-                        KollaGO.INSTANCE.screen = LoginScreen()
-                        return@updateRemoteConfig
-                    }
+    private fun continueLoginGPS() {
+        val platform: Platform = KollaGO.INSTANCE.platform
 
-                    loadingProgress = 40
+        platform.tracedLog("Authentication", "Starting login")
 
-                    val user: Platform.NativeAuthUser = platform.getUser()
+        if (!platform.isLoggedIn()) {
+            KollaGO.INSTANCE.screen = LoginScreen()
+            return
+        }
 
-                    user.refresh { success, message ->
-                        if (success) {
-                            if (!user.isEmailVerified()) {
-                                setScreen(ConfirmEmailScreen())
+        loadingProgress = 40
 
-                                return@refresh
+        val user: Platform.NativeAuthUser = platform.getUser()
+
+        user.refresh { success, message ->
+            if (success) {
+                if (!user.isEmailVerified()) {
+                    setScreen(ConfirmEmailScreen())
+
+                    return@refresh
+                }
+
+                loadingProgress = 60
+
+                platform.getFirebaseUID {
+                    if (it.isBlank()) {
+                        Gdx.app.postRunnable {
+                            platform.logOut {
+                                KollaGO.INSTANCE.screen = LoginScreen()
                             }
+                        }
+                    } else {
+                        loadingProgress = 80
 
-                            loadingProgress = 60
-
-                            platform.getFirebaseUID {
-                                if (it.isBlank()) {
-                                    Gdx.app.postRunnable {
-                                        platform.logOut {
-                                            KollaGO.INSTANCE.screen = LoginScreen()
-                                        }
-                                    }
-                                } else {
-                                    loadingProgress = 80
-
-                                    val currentPosition: GeoPoint = platform.getGpsPosition()
-                                    KollaGO.INSTANCE.networkManager.tryApiLogin(it, currentPosition) { errorCode, message ->
-                                        handleLoginResponse(errorCode, it, message)
-                                    }
-                                }
-                            }
-                        } else {
-                            failWithDialog("Fiók Frissítése", message)
+                        val currentPosition: GeoPoint = platform.getGpsPosition()
+                        KollaGO.INSTANCE.networkManager.tryApiLogin(it, currentPosition) { errorCode, message ->
+                            handleLoginResponse(errorCode, it, message)
                         }
                     }
                 }
+            } else {
+                failWithDialog("Fiók Frissítése", message)
             }
         }
     }

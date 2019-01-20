@@ -1,20 +1,29 @@
 package skacce.rs.kollago.screens
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.utils.viewport.Viewport
+import ktx.collections.gdxArrayOf
 import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.graphics.TextureManager
 import skacce.rs.kollago.gui.GuiScreen
 
 open class MenuScreen : GuiScreen() {
+    private companion object {
+        private var animationStateTime: Float = 0f
+        private var logo: Animation<TextureRegion>? = null
+    }
+
     protected var viewport: Viewport
 
     private var backgroundTexture: Texture
     private lateinit var backgroundSize: Vector2
 
-    private var logoTexture: Texture
+    private var logoTexture: TextureRegion
     private lateinit var logoSize: Vector2
 
     init {
@@ -23,7 +32,19 @@ open class MenuScreen : GuiScreen() {
         viewport = game.staticViewport
 
         val textureManager: TextureManager = game.textureManager
-        logoTexture = textureManager["gui/logo.png"]
+
+        if(logo == null) {
+            val frames: MutableList<TextureRegion> = arrayListOf()
+            TextureRegion.split(textureManager["gui/logo.png"], 720, 97).forEach {
+                it.forEach {
+                    frames.add(it)
+                }
+            }
+
+            logo = Animation(1f / 30f, gdxArrayOf(*frames.toTypedArray()), Animation.PlayMode.LOOP)
+        }
+
+        logoTexture = logo!!.getKeyFrame(animationStateTime)
         backgroundTexture = textureManager["gui/background.png"]
 
         scaleBackground()
@@ -47,6 +68,9 @@ open class MenuScreen : GuiScreen() {
 
     private fun drawLogo(spriteBatch: SpriteBatch) {
         spriteBatch.draw(logoTexture, viewport.worldWidth / 2 - logoSize.x / 2, viewport.worldHeight - logoSize.y - 20f - KollaGO.SAFE_AREA_OFFSET, logoSize.x, logoSize.y)
+
+        animationStateTime += Gdx.graphics.deltaTime
+        logoTexture = logo!!.getKeyFrame(animationStateTime)
     }
 
     private fun scaleBackground() {
@@ -58,11 +82,11 @@ open class MenuScreen : GuiScreen() {
     }
 
     private fun scaleLogo() {
-        val widthRatio = 720f / logoTexture.width
-        val heightRatio = 150f / logoTexture.height
+        val widthRatio = 720f / logoTexture.regionWidth
+        val heightRatio = 150f / logoTexture.regionHeight
         val ratio = Math.min(widthRatio, heightRatio)
 
-        logoSize = Vector2(ratio * logoTexture.width, ratio * logoTexture.height)
+        logoSize = Vector2(ratio * logoTexture.regionWidth, ratio * logoTexture.regionHeight)
     }
 
     override fun resize(width: Int, height: Int) {

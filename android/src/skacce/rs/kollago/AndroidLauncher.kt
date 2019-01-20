@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Rect
 import android.location.*
+import android.opengl.GLES10
 import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.support.v4.app.ActivityCompat
@@ -21,10 +22,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.RelativeLayout
+import android.widget.*
 import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
 import com.badlogic.gdx.backends.android.surfaceview.GLSurfaceView20API18
@@ -35,6 +33,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.*
 import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -56,10 +56,13 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
     private val REQUEST_LOCATION_PERMISSION: Int = 5322
+    private val REQUEST_CHECK_SETTINGS: Int = 1423
     private val REQUEST_GOOGLE_SIGN_IN = 41672
 
     private lateinit var lastPosition: GeoPoint
-    private lateinit var locationManager: LocationManager
+    private lateinit var lastLocation: Location
+
+    private lateinit var locationManager: FusedLocationProviderClient
     private lateinit var locationInitFuture: CompletableFuture<Boolean>
 
     private var statusBarHeight: Int = 0
@@ -96,7 +99,6 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
         Tile.SIZE = Tile.calculateTileSize()
 
-        val window = window
         val rootView = window.decorView.findViewById<View>(android.R.id.content)
         rootView.viewTreeObserver.addOnGlobalLayoutListener {
             val size = Rect()
@@ -226,6 +228,14 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
                 callback(false, e.localizedMessage)
             }
         }
+
+        if(requestCode == REQUEST_CHECK_SETTINGS) {
+            if(resultCode == Activity.RESULT_OK) {
+                setUpGPS()
+            } else {
+                locationInitFuture.complete(false)
+            }
+        }
     }
 
     override fun initGps(): CompletableFuture<Boolean> {
@@ -264,60 +274,85 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         }
     }
 
-    private val locationListener: LocationListener = object : LocationListener {
-        override fun onLocationChanged(p0: Location) {
-            lastPosition = GeoPoint(p0.latitude, p0.longitude)
-        }
+    private val locationListener: LocationCallback = object : LocationCallback() {
+        override fun onLocationResult(p0: LocationResult?) {
+            val firstFix: Boolean = !::lastPosition.isInitialized
 
-        override fun onStatusChanged(p0: String, p1: Int, p2: Bundle) {
+            lastLocation = p0!!.lastLocation
+            lastPosition = GeoPoint(lastLocation.latitude, lastLocation.longitude)
 
-        }
-
-        override fun onProviderEnabled(p0: String) {
-
-        }
-
-        override fun onProviderDisabled(p0: String) {
-
+            if(firstFix) {
+                locationInitFuture.complete(true)
+            }
         }
     }
 
     private fun setUpLocationManager() {
-        Log.i("Location", "Setting up LocationManager")
+        tracedLog("Location", "Setting up LocationManager")
 
-        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        locationManager = LocationServices.getFusedLocationProviderClient(this)
 
+        val locationRequest: LocationRequest = LocationRequest.create().apply {
+            interval = 50
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        }
+
+        val requestBuilder: LocationSettingsRequest.Builder = LocationSettingsRequest.Builder()
+                .addLocationRequest(locationRequest)
+
+        val settingsClient: SettingsClient = LocationServices.getSettingsClient(this)
+
+        tracedLog("Location", "Checking location settings")
+        settingsClient.checkLocationSettings(requestBuilder.build()).addOnSuccessListener {
+            setUpGPS()
+        }.addOnFailureListener {
+            if(it is ResolvableApiException) {
+                try {
+                    tracedLog("Location", "Starting resolution")
+                    it.startResolutionForResult(this, REQUEST_CHECK_SETTINGS)
+                } catch (e: Exception) {
+                    locationInitFuture.complete(false)
+                }
+            } else {
+                locationInitFuture.complete(false)
+            }
+        }
+    }
+
+    private fun setUpGPS() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, locationListener)
+            tracedLog("Location", "Setting up location client")
 
-            if (!::lastPosition.isInitialized) {
-                var location: Location? = null
+            val locationRequest: LocationRequest = LocationRequest.create().apply {
+                interval = 50
+                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+            }
 
-                locationManager.allProviders.forEach {
-                    val lastProviderLocation: Location? = locationManager.getLastKnownLocation(it)
+            locationManager.requestLocationUpdates(locationRequest, locationListener, null)
+            locationManager.lastLocation.addOnSuccessListener {
+                if(it != null) {
+                    lastLocation = it
+                    lastPosition = GeoPoint(it.latitude, it.longitude)
 
-                    if (lastProviderLocation != null && (location == null || location!!.accuracy < lastProviderLocation.accuracy)) {
-                        location = lastProviderLocation
+                    locationInitFuture.complete(true)
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(this, "Nincs elérhető pozíció! A jaték elindul amint frissül a GPS.", Toast.LENGTH_LONG).show()
                     }
                 }
 
-                if (location != null) {
-                    lastPosition = GeoPoint(location!!.latitude, location!!.longitude)
-                }
+                tracedLog("Location", "GMS location setup complete")
+            }.addOnFailureListener {
+                locationInitFuture.complete(false)
             }
-
-            locationInitFuture.complete(true)
         } else {
             locationInitFuture.complete(false)
         }
-
-        Log.i("Location", "Set up LocationManager!")
     }
 
     override fun checkGpsState(): Boolean {
         return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-                ::locationManager.isInitialized &&
-                locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                ::locationManager.isInitialized
     }
 
     override fun getGpsPosition(): GeoPoint {
@@ -483,6 +518,9 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         val geocoder: Geocoder = Geocoder(this)
 
         val results: List<Address> = geocoder.getFromLocation(position.latitude, position.longitude, 1)
+        if(results.isEmpty()) {
+            return "Ismeretlen"
+        }
 
         return with(results[0]) {
             (0..this.maxAddressLineIndex).map { getAddressLine(it).replace("\n", "") }
@@ -530,5 +568,13 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         remoteConfig.setDefaults(mapOf(key to default))
 
         return remoteConfig.getString(key)
+    }
+
+    override fun tracedLog(tag: String, message: String) {
+        Crashlytics.log(Log.INFO, tag, message)
+    }
+
+    override fun debugString(): String {
+        return "Loc: $lastLocation, acc: ${lastLocation.accuracy}, prov.: ${lastLocation.provider}"
     }
 }

@@ -97,6 +97,7 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
 
         textRenderer = TextRenderer(spriteBatch)
         textRenderer.registerFont(Font("Roboto", "fonts/roboto/Roboto-Regular.ttf", "fonts/roboto/Roboto-Italic.ttf", "fonts/roboto/Roboto-Bold.ttf"))
+        textRenderer.registerFont(Font("Hemi", "fonts/hemi/hemi head bd it.ttf", null, null))
 
         inputHandler = GdxInputHandler()
 

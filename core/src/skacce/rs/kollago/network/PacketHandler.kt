@@ -111,7 +111,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
         connection.sendTCP(packetWrapper)
     }
 
-    private class KryoMessageWrapper(var messageId: Int, var responseId: String, var data: ByteArray) {
+    class KryoMessageWrapper(var messageId: Int, var responseId: String, var data: ByteArray) {
         constructor() : this(0, "", byteArrayOf())
     }
 }

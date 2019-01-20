@@ -3,12 +3,15 @@ package skacce.rs.kollago.gui.elements
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.NinePatch
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
 import ktx.math.vec2
 import skacce.rs.kollago.KollaGO
+import skacce.rs.kollago.graphics.RepeatedNinePatch
 import skacce.rs.kollago.graphics.TextureManager
 import skacce.rs.kollago.graphics.text.FontStyle
 import skacce.rs.kollago.graphics.text.TextRenderer
@@ -25,8 +28,9 @@ class GuiButton(override val x: Float, override val y: Float, override val width
     private val bounds: Rectangle = Rectangle(x, y, width, height)
     private var textSize: Vector2 = vec2()
 
-    private lateinit var normalTexture: NinePatch
-    private lateinit var hoverTexture: NinePatch
+    private lateinit var normalTexture: RepeatedNinePatch
+
+    private lateinit var hoverTexture: RepeatedNinePatch
 
     lateinit var clickHandler: (longPress: Boolean) -> Unit
     private var touching: Boolean = false
@@ -44,10 +48,8 @@ class GuiButton(override val x: Float, override val y: Float, override val width
         textRenderer = game.textRenderer
         textSize = textRenderer.getTextSize(text, style.fontName, style.fontStyle, style.fontSize)
 
-        val textureManager: TextureManager = game.textureManager
-
-        normalTexture = NinePatch(textureManager["gui/button_normal.png"], 40, 40, 40, 40)
-        hoverTexture = NinePatch(textureManager["gui/button_hover.png"], 40, 40, 40, 40)
+        normalTexture = RepeatedNinePatch("gui/button_normal.png", "gui/button_normal_repeat.png", width.toInt(), 47, 47, 50, 50)
+        hoverTexture = RepeatedNinePatch("gui/button_hover.png", "gui/button_hover_repeat.png", width.toInt(), 47, 47, 50, 50)
     }
 
     override fun destroy() {
@@ -110,5 +112,5 @@ class GuiButton(override val x: Float, override val y: Float, override val width
         return true
     }
 
-    data class Style(val fontName: String = "Roboto", val fontSize: Int = 30, val fontStyle: FontStyle = FontStyle.NORMAL, val fontColor: Color = Color.WHITE, val disabledColor: Color = Color.LIGHT_GRAY)
+    data class Style(val fontName: String = "Hemi", val fontSize: Int = 30, val fontStyle: FontStyle = FontStyle.NORMAL, val fontColor: Color = Color.WHITE, val disabledColor: Color = Color.LIGHT_GRAY)
 }

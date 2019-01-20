@@ -96,6 +96,14 @@ class DesktopLauncher : Platform, TextInputProvider {
         callback(true)
     }
 
+    override fun tracedLog(tag: String, message: String) {
+
+    }
+
+    override fun debugString(): String {
+        return ""
+    }
+
     class DesktopUser : Platform.NativeAuthUser {
         override fun getEMail(): String {
             return ""
