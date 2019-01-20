@@ -27,6 +27,7 @@ import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.ar.poi.PlayerBase
 import skacce.rs.kollago.ar.poi.RewardStop
 import skacce.rs.kollago.graphics.text.FontStyle
+import skacce.rs.kollago.input.InputHandler
 import skacce.rs.kollago.map.VTMMap
 import skacce.rs.kollago.network.NetworkManager
 import skacce.rs.kollago.network.protocol.*
@@ -34,7 +35,7 @@ import skacce.rs.kollago.utils.*
 import java.nio.IntBuffer
 import java.util.*
 
-class ARWorld : Screen {
+class ARWorld : Screen, InputHandler {
     private fun framebufferSize(): Int = (KollaGO.MAP_RESOLUTION * (KollaGO.MAP_SCALE + 2f)).toInt()
 
     private val game: KollaGO = KollaGO.INSTANCE
@@ -45,7 +46,7 @@ class ARWorld : Screen {
     private val camera: PerspectiveCamera = PerspectiveCamera(67f, KollaGO.WIDTH, KollaGO.HEIGHT)
     private val worldViewport: ExtendViewport = ExtendViewport(KollaGO.WIDTH, KollaGO.HEIGHT, camera)
     private val modelBatch: ModelBatch = ModelBatch()
-    private val environment: Environment = Environment()
+    private val hudRenderer: HUDRenderer = HUDRenderer()
 
     private val floorMesh: Mesh = ARUtils.createPlaneMesh(KollaGO.MAP_RESOLUTION, KollaGO.MAP_RESOLUTION, 0f, 0f, 1f, 1f)
     private val skyModelInstance: ModelInstance = ModelInstance(ARUtils.createSkySphere())
@@ -63,19 +64,6 @@ class ARWorld : Screen {
     )
 
     private val selectedModel: PlayerModel = playerModels[networkManager.ownProfile.model.value]
-    private val animationController: AnimationController = AnimationController(selectedModel.modelInstance)
-
-    private val playerPortraits: Array<Texture> = arrayOf(
-            game.textureManager["portrait/0.png"],
-            game.textureManager["portrait/1.png"]
-    )
-
-    private val levelProgress: Array<NinePatch> = arrayOf(
-            NinePatch(game.textureManager["gui/level_progress_0.png"], 4, 4, 4, 4),
-            NinePatch(game.textureManager["gui/level_progress_1.png"], 4, 4, 4, 4)
-    )
-
-    private val profileBg: NinePatch = NinePatch(game.textureManager["gui/profile_bg.png"], 45, 45, 45, 45)
 
     private var useCompassRotation: Boolean = true
     private var playerRotation: Float = 0f
@@ -93,6 +81,7 @@ class ARWorld : Screen {
     private var selectedStop: StopData = StopData()
 
     init {
+        game.inputHandler.addInputHandler(this)
         (Gdx.input.inputProcessor as InputMultiplexer).addProcessor(cameraController)
 
         camera.position.set(60f, 60f, 60f)
@@ -101,15 +90,11 @@ class ARWorld : Screen {
         camera.far = KollaGO.MAP_RESOLUTION * KollaGO.MAP_SCALE
         camera.update()
 
-        environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.9f, 0.9f, 0.9f, 1f))
-
         skyModelInstance.materials.get(0).set(IntAttribute(IntAttribute.CullFace, 0))
 
         vtmMap.setTheme(Gdx.files.internal("map/game_theme.xml"))
         vtmMap.setScale(16)
         vtmMap.setPosition(game.platform.getGpsPosition())
-
-        animationController.setAnimation(selectedModel.runningAnimation, -1)
 
         Gdx.app.log("ARWorld", "3D setup complete!")
 
@@ -134,8 +119,6 @@ class ARWorld : Screen {
 
             lastPlayerRotation = playerRotation
         }
-
-        selectedModel.modelInstance.transform.setFromEulerAngles(playerRotation, 0f, 0f)
 
         mapFrameBuffer.begin()
         Gdx.gl.glClearColor(0.9f, 0.9f, 0.89f, 1f)
@@ -166,17 +149,16 @@ class ARWorld : Screen {
 
         synchronized(loadedStops) {
             loadedStops.forEach {
-                it.value.render(modelBatch, environment)
+                it.value.render(modelBatch)
             }
         }
-
 
         var lowestPlayerOpacity: Float = 1f
         synchronized(loadedBases) {
             loadedBases.forEach {
-                it.value.render(modelBatch, environment)
+                it.value.render(modelBatch)
 
-                val playerOpacity: Float = it.value.geoPoint.sphericalDistance(vtmMap.getLocation()).toFloat() / 25f
+                val playerOpacity: Float = it.value.calculatePlayerOpacity()
                 if(playerOpacity < lowestPlayerOpacity) {
                     lowestPlayerOpacity = playerOpacity
                 }
@@ -193,13 +175,12 @@ class ARWorld : Screen {
             it.set(BlendingAttribute(lowestPlayerOpacity))
         }
 
-        modelBatch.render(selectedModel.modelInstance, environment)
+        selectedModel.modelInstance.transform.setFromEulerAngles(playerRotation, 0f, 0f)
+        selectedModel.render(modelBatch)
 
         modelBatch.end()
 
         skyModelInstance.transform.rotate(Vector3.Y, 2f * skyRotation * delta)
-
-        animationController.update(delta)
 
         if (KollaGO.INSTANCE.platform.getGpsPosition() != targetPoint) {
             targetPoint = game.platform.getGpsPosition()
@@ -209,8 +190,8 @@ class ARWorld : Screen {
             vtmMap.animateToPoint(targetPoint!!)
 
             useCompassRotation = false
-            if (!animationController.current.animation.id.equals(selectedModel.runningAnimation, ignoreCase = true)) {
-                animationController.setAnimation(selectedModel.runningAnimation, -1)
+            if(!selectedModel.isRunning()) {
+                selectedModel.setRunningAnimation()
             }
 
             val current = vtmMap.getLocation()
@@ -220,9 +201,9 @@ class ARWorld : Screen {
             playerRotation = mapPositionTarget.sub(mapPositionCurrent).angle(Vector2.Y)
         }
 
-        if (vtmMap.getLocation() == targetPoint && animationController.current.animation.id.equals(selectedModel.runningAnimation, ignoreCase = true)) {
+        if (vtmMap.getLocation() == targetPoint && selectedModel.isRunning()) {
             useCompassRotation = true
-            animationController.setAnimation(selectedModel.idleAnimation, -1)
+            selectedModel.setIdleAnimation()
         }
 
         timeElapsed += Gdx.graphics.deltaTime
@@ -237,33 +218,9 @@ class ARWorld : Screen {
         game.spriteBatch.projectionMatrix = KollaGO.INSTANCE.staticViewport.camera.combined
         game.spriteBatch.begin()
 
-        val profile: ProfileData = game.networkManager.ownProfile
-        val lvSize: Vector2 = game.textRenderer.getTextSize("lv", "Roboto", FontStyle.NORMAL, 24)
-        val numSize: Vector2 = game.textRenderer.getTextSize("${profile.level().toInt()}", "Roboto", FontStyle.BOLD, 30)
-        val nameSize: Vector2 = game.textRenderer.getTextSize(profile.username, "Roboto", FontStyle.BOLD, 30)
+        hudRenderer.render()
 
-        var progressWidth: Float = 160f
-        val progressPosition: Vector2 = vec2(10f + lvSize.x + numSize.x + 15f, 40f + numSize.y / 2f - 8f)
-
-        val profileHeight: Float = 10f + nameSize.y + 5f + numSize.y + 40f
-        profileBg.draw(game.spriteBatch, 0f, 0f, lvSize.x + numSize.x + progressWidth + 10f + 5f + 40f, profileHeight)
-
-        game.spriteBatch.draw(playerPortraits[profile.model.value], 0f, profileHeight / 2, 64f, 64f, 128f, 128f, 1f, 1f, 0f, 0, 0, 512, 512, true, false)
-
-        game.textRenderer.drawText(profile.username, 10f, 10f, 30, "Roboto", FontStyle.BOLD, Color.WHITE, true)
-        game.textRenderer.drawText("lv", 10f, 10f + nameSize.y + 5f, 24, "Roboto", FontStyle.NORMAL, Color.WHITE, true)
-        game.textRenderer.drawText("${profile.level().toInt()}", 10f + lvSize.x + 5f, 10f + nameSize.y + 5f, 30, "Roboto", FontStyle.BOLD, Color.WHITE, true)
-
-        levelProgress[0].draw(game.spriteBatch, progressPosition.x, progressPosition.y, progressWidth, 16f)
-
-        progressWidth *= profile.levelProgress()
-        if(progressWidth >= 0.05) {
-            levelProgress[1].draw(game.spriteBatch, progressPosition.x, progressPosition.y, progressWidth, 16f)
-        }
-
-        /*val b: IntBuffer = BufferUtils.newIntBuffer(16)
-        Gdx.graphics.gL20.glGetIntegerv(GL20.GL_MAX_TEXTURE_SIZE, b)
-        game.textRenderer.drawWrappedText(selectedStop.toString() + game.platform.debugString() + "\nLevel: ${game.networkManager.ownProfile.level()}\n${game.networkManager.ownProfile.xpToNextLevel()}", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)*/
+        game.textRenderer.drawWrappedText(selectedStop.toString() + "\n$targetPoint ${vtmMap.getLocation()} ${vtmMap.getLocation() == targetPoint} ${vtmMap.getLocation().sphericalDistance(targetPoint)}", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
 
         if(Gdx.input.justTouched()) {
             synchronized(loadedStops) {
@@ -351,6 +308,9 @@ class ARWorld : Screen {
         floorMesh.dispose()
         mapFrameBuffer.dispose()
         floorShader.dispose()
+        hudRenderer.dispose()
+
+        game.inputHandler.removeInputHandler(this)
     }
 
     override fun pause() {}

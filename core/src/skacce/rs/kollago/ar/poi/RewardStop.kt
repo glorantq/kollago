@@ -38,14 +38,14 @@ class RewardStop(val geoPoint: GeoPoint, private val vtmMap: VTMMap, private val
         val gpsPosition: Vector2 = vtmMap.toWorldPos(geoPoint)
 
         modelInstance = ModelInstance(stopModel)
-        modelInstance.transform.set(Vector3(gpsPosition.x / mapResolutionScale, 15f, gpsPosition.y / mapResolutionScale), Quaternion())
+        modelInstance.transform.set(Vector3(gpsPosition.x / mapResolutionScale, 0f, gpsPosition.y / mapResolutionScale), Quaternion())
         modelInstance.transform.scale(3f, 3f, 3f)
 
         controller = AnimationController(modelInstance)
         controller.setAnimation("ch_random_body_skeleton|ch_random", -1)
     }
 
-    fun render(modelBatch: ModelBatch, environment: Environment) {
+    fun render(modelBatch: ModelBatch) {
         position.set(vtmMap.toWorldPos(geoPoint) * (1f / mapResolutionScale))
 
         if (position.dst(Vector2.Zero) >= 512f) {
@@ -60,14 +60,16 @@ class RewardStop(val geoPoint: GeoPoint, private val vtmMap: VTMMap, private val
         }
 
         modelInstance.transform.setToRotation(Vector3.Y, rotation)
-        modelInstance.transform.set(Vector3(position.x, 10f, position.y), modelInstance.transform.getRotation(Quaternion()))
+        modelInstance.transform.set(Vector3(position.x, 0f, position.y), modelInstance.transform.getRotation(Quaternion()))
 
         val distance = position.dst(0f, 0f)
-        val opacity: Float = if (distance <= 50) 1f else 1f - distance / (512 - 50)
+        val opacity: Float = if (distance <= 50) 1f else 1f - distance / (512)
 
-        modelInstance.materials.get(0).set(BlendingAttribute(opacity))
+        modelInstance.materials.forEach {
+            it.set(BlendingAttribute(opacity))
+        }
 
-        modelBatch.render(modelInstance, environment)
+        modelBatch.render(modelInstance)
     }
 
     fun rayTest(ray: Ray): Boolean {

@@ -1,7 +1,6 @@
 package skacce.rs.kollago.ar.poi
 
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.Model
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
@@ -13,6 +12,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import ktx.math.vec2
+import ktx.math.vec3
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.map.VTMMap
 import skacce.rs.kollago.network.protocol.BaseData
@@ -57,7 +57,7 @@ class PlayerBase(backendData: BaseData, private val vtmMap: VTMMap, private val 
         modelInstance.transform.set(Vector3(gpsPosition.x / mapResolutionScale, 0f, gpsPosition.y / mapResolutionScale), modelInstance.transform.getRotation(Quaternion()))
     }
 
-    fun render(modelBatch: ModelBatch, environment: Environment) {
+    fun render(modelBatch: ModelBatch) {
         position.set(vtmMap.toWorldPos(geoPoint).scl(1f / mapResolutionScale))
 
         if (position.dst(Vector2.Zero) >= 512f) {
@@ -70,9 +70,11 @@ class PlayerBase(backendData: BaseData, private val vtmMap: VTMMap, private val 
         val distance = position.dst(0f, 0f)
         val opacity: Float = if (distance <= 50) 1f else 1f - distance / (512 - 50)
 
-        modelInstance.materials.get(0).set(BlendingAttribute(opacity))
+        modelInstance.materials.forEach {
+            it.set(BlendingAttribute(opacity))
+        }
 
-        modelBatch.render(modelInstance, environment)
+        modelBatch.render(modelInstance)
     }
 
     fun rayTest(ray: Ray): Boolean {
@@ -86,6 +88,13 @@ class PlayerBase(backendData: BaseData, private val vtmMap: VTMMap, private val 
         boundingBox.mul(modelInstance.transform)
 
         return Intersector.intersectRayBoundsFast(ray, boundingBox)
+    }
+
+    fun calculatePlayerOpacity(): Float {
+        val boundingBox = modelInstance.calculateBoundingBox(BoundingBox())
+        boundingBox.mul(modelInstance.transform)
+
+        return boundingBox.getCenter(vec3()).dst(vec3()) / Math.max(boundingBox.width, boundingBox.height)
     }
 
     fun updateBackendData(newData: BaseData) {

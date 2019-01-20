@@ -6,6 +6,7 @@ import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.assets.AssetManager
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.input.GestureDetector
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import de.tomgrill.gdxdialogs.core.GDXDialogs
