@@ -35,13 +35,13 @@ open class MenuScreen : GuiScreen() {
 
         if(logo == null) {
             val frames: MutableList<TextureRegion> = arrayListOf()
-            TextureRegion.split(textureManager["gui/logo.png"], 720, 97).forEach {
+            TextureRegion.split(textureManager["gui/logo.png"], 654, 99).forEach {
                 it.forEach {
                     frames.add(it)
                 }
             }
 
-            logo = Animation(1f / 30f, gdxArrayOf(*frames.toTypedArray()), Animation.PlayMode.LOOP)
+            logo = Animation(1f / 60f, gdxArrayOf(*frames.subList(0, frames.size - 5).toTypedArray()), Animation.PlayMode.LOOP)
         }
 
         logoTexture = logo!!.getKeyFrame(animationStateTime)
