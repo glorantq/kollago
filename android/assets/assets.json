@@ -1,11 +1,5 @@
 {
   "textures": [
-    "base/1/Alien_Metal_002_COLOR.jpg",
-    "base/1/Brick_Wall_014_COLOR.jpg",
-    "base/1/kollay.png",
-    "base/1/Wood_plancks_004_COLOR.jpg",
-    "base/1/Wood_Planks_008_COLOR.jpg",
-    "base/1/Wood_Roof_Tiles_001_COLOR.jpg",
     "gui/background.png",
     "gui/button_hover.png",
     "gui/button_hover_repeat.png",

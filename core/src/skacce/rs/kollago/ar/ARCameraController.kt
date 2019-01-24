@@ -24,6 +24,8 @@ class ARCameraController(private val camera: Camera, private val maxPitch: Int, 
     private var lastTapTime = 0L
     private val lastTapLocation = Vector2()
 
+    var active: Boolean = true
+
     private inner class CameraGestureListener : GestureDetector.GestureAdapter() {
         var cameraController: ARCameraController? = null
 
@@ -75,6 +77,10 @@ class ARCameraController(private val camera: Camera, private val maxPitch: Int, 
     }
 
     private fun process(deltaX: Float, deltaY: Float, button: Int, rotateY: Boolean): Boolean {
+        if(!active) {
+            return false
+        }
+
         if (button == Input.Buttons.LEFT) {
             tmpV1.set(camera.direction).crs(camera.up).y = 0f
 

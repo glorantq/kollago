@@ -1,6 +1,7 @@
 package skacce.rs.kollago.ar.poi
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.PerspectiveCamera
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.Model
 import com.badlogic.gdx.graphics.g3d.ModelBatch
@@ -13,6 +14,7 @@ import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
+import ktx.math.div
 import ktx.math.times
 import ktx.math.timesAssign
 import org.oscim.core.GeoPoint
@@ -35,10 +37,10 @@ class RewardStop(val geoPoint: GeoPoint, private val vtmMap: VTMMap, private val
     val position = Vector2()
 
     init {
-        val gpsPosition: Vector2 = vtmMap.toWorldPos(geoPoint)
+        val gpsPosition: Vector2 = vtmMap.toWorldPos(geoPoint) / mapResolutionScale
 
         modelInstance = ModelInstance(stopModel)
-        modelInstance.transform.set(Vector3(gpsPosition.x / mapResolutionScale, 0f, gpsPosition.y / mapResolutionScale), Quaternion())
+        modelInstance.transform.set(Vector3(gpsPosition.x, 0f, gpsPosition.y), Quaternion())
         modelInstance.transform.scale(3f, 3f, 3f)
 
         controller = AnimationController(modelInstance)
@@ -46,7 +48,7 @@ class RewardStop(val geoPoint: GeoPoint, private val vtmMap: VTMMap, private val
     }
 
     fun render(modelBatch: ModelBatch) {
-        position.set(vtmMap.toWorldPos(geoPoint) * (1f / mapResolutionScale))
+        position.set(vtmMap.toWorldPos(geoPoint) / mapResolutionScale)
 
         if (position.dst(Vector2.Zero) >= 512f) {
             return
@@ -72,15 +74,19 @@ class RewardStop(val geoPoint: GeoPoint, private val vtmMap: VTMMap, private val
         modelBatch.render(modelInstance)
     }
 
-    fun rayTest(ray: Ray): Boolean {
-        val pos = vtmMap.toWorldPos(geoPoint)* (1f / mapResolutionScale)
+    fun rayTest(ray: Ray, camera: PerspectiveCamera): Boolean {
+        val boundingBox = modelInstance.calculateBoundingBox(BoundingBox())
+        boundingBox.mul(modelInstance.transform)
+
+        if(!camera.frustum.boundsInFrustum(boundingBox)) {
+            return false
+        }
+
+        val pos = vtmMap.toWorldPos(geoPoint) / mapResolutionScale
 
         if (pos.dst(Vector2.Zero) >= 512f) {
             return false
         }
-
-        val boundingBox = modelInstance.calculateBoundingBox(BoundingBox())
-        boundingBox.mul(modelInstance.transform)
 
         return Intersector.intersectRayBoundsFast(ray, boundingBox)
     }

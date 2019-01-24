@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.files.FileHandle
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.utils.Timer
+import ktx.math.vec2
 import okhttp3.OkHttpClient
 import org.oscim.backend.GL
 import org.oscim.backend.GLAdapter.gl
@@ -117,11 +118,12 @@ class VTMMap(private val width: Int, private val height: Int) {
         setPosition(map.mapPosition.geoPoint)
     }
 
-    fun toWorldPos(geoPoint: GeoPoint): Vector2 {
+    fun toWorldPos(geoPoint: GeoPoint, out: Vector2 = vec2()): Vector2 {
         val point = Point()
         map.viewport().toScreenPoint(geoPoint, true, point)
 
-        return Vector2(point.x.toInt().toFloat(), point.y.toInt().toFloat())
+        out.set(point.x.toInt().toFloat(), point.y.toInt().toFloat())
+        return out
     }
 
     fun animateToPoint(point: GeoPoint) {

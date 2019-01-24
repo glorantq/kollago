@@ -1,6 +1,7 @@
 package skacce.rs.kollago.ar
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.Screen
 import com.badlogic.gdx.graphics.*
@@ -15,6 +16,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController
 import com.badlogic.gdx.graphics.glutils.FrameBuffer
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
+import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
@@ -22,8 +24,11 @@ import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.BufferUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import ktx.math.vec2
+import ktx.math.vec3
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
+import skacce.rs.kollago.ar.overlays.PlayerBaseOverlay
+import skacce.rs.kollago.ar.overlays.RewardStopOverlay
 import skacce.rs.kollago.ar.poi.PlayerBase
 import skacce.rs.kollago.ar.poi.RewardStop
 import skacce.rs.kollago.graphics.text.FontStyle
@@ -37,6 +42,9 @@ import java.util.*
 
 class ARWorld : Screen, InputHandler {
     private fun framebufferSize(): Int = (KollaGO.MAP_RESOLUTION * (KollaGO.MAP_SCALE + 2f)).toInt()
+
+    private val temp: Vector2 = vec2()
+    private val temp2: Vector2 = vec2()
 
     private val game: KollaGO = KollaGO.INSTANCE
     private val networkManager: NetworkManager = game.networkManager
@@ -78,11 +86,19 @@ class ARWorld : Screen, InputHandler {
     private val loadedBases: MutableMap<String, PlayerBase> = hashMapOf()
     private var lastUpdatePoint: GeoPoint
 
-    private var selectedStop: StopData = StopData()
+    private val darkenPixel: Texture
+    private var overlayScreen: Overlay? = null
 
     init {
         game.inputHandler.addInputHandler(this)
         (Gdx.input.inputProcessor as InputMultiplexer).addProcessor(cameraController)
+        Gdx.input.isCatchBackKey = true
+
+        val pixmap: Pixmap = Pixmap(1, 1, Pixmap.Format.RGBA4444)
+        pixmap.setColor(0f, 0f, 0f, .4f)
+        pixmap.fill()
+
+        darkenPixel = Texture(pixmap)
 
         camera.position.set(60f, 60f, 60f)
         camera.lookAt(0f, 0f, 0f)
@@ -104,6 +120,8 @@ class ARWorld : Screen, InputHandler {
 
     override fun render(delta: Float) {
         game.spriteBatch.end()
+
+        cameraController.active = overlayScreen == null
 
         camera.update()
         worldViewport.apply()
@@ -182,10 +200,12 @@ class ARWorld : Screen, InputHandler {
 
         skyModelInstance.transform.rotate(Vector3.Y, 2f * skyRotation * delta)
 
+        val mapLocation: GeoPoint = vtmMap.getLocation()
+
         if (KollaGO.INSTANCE.platform.getGpsPosition() != targetPoint) {
             targetPoint = game.platform.getGpsPosition()
 
-            distance += targetPoint!!.sphericalDistance(vtmMap.getLocation()).toFloat()
+            distance += targetPoint!!.sphericalDistance(mapLocation).toFloat()
 
             vtmMap.animateToPoint(targetPoint!!)
 
@@ -194,14 +214,13 @@ class ARWorld : Screen, InputHandler {
                 selectedModel.setRunningAnimation()
             }
 
-            val current = vtmMap.getLocation()
-            val mapPositionCurrent = vtmMap.toWorldPos(current)
-            val mapPositionTarget = vtmMap.toWorldPos(targetPoint!!)
+            vtmMap.toWorldPos(mapLocation, temp)
+            vtmMap.toWorldPos(targetPoint!!, temp2)
 
-            playerRotation = mapPositionTarget.sub(mapPositionCurrent).angle(Vector2.Y)
+            playerRotation = temp2.sub(temp).angle(Vector2.Y)
         }
 
-        if (vtmMap.getLocation() == targetPoint && selectedModel.isRunning()) {
+        if (mapLocation == targetPoint && selectedModel.isRunning()) {
             useCompassRotation = true
             selectedModel.setIdleAnimation()
         }
@@ -220,23 +239,71 @@ class ARWorld : Screen, InputHandler {
 
         hudRenderer.render()
 
-        game.textRenderer.drawWrappedText(selectedStop.toString() + "\n$targetPoint ${vtmMap.getLocation()} ${vtmMap.getLocation() == targetPoint} ${vtmMap.getLocation().sphericalDistance(targetPoint)}", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
+        if(overlayScreen != null) {
+            game.spriteBatch.draw(darkenPixel, 0f, 0f, game.staticViewport.worldWidth, game.staticViewport.worldHeight)
+            overlayScreen!!.render()
+        }
 
-        if(Gdx.input.justTouched()) {
-            synchronized(loadedStops) {
-                val pickRay: Ray = camera.getPickRay(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+        game.textRenderer.drawWrappedText("${Gdx.graphics.framesPerSecond} FPS", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
 
-                loadedStops.forEach {
-                    if(it.value.rayTest(pickRay)) {
-                        selectedStop = it.value.backendData
-                        return@forEach
-                    }
+        if(targetPoint != null && lastUpdatePoint.sphericalDistance(targetPoint) >= 150) {
+            actualiseFeatures()
+        }
+
+        if(Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
+            closeOverlay()
+        }
+    }
+
+    override fun tap(x: Float, y: Float, count: Int, button: Int): Boolean {
+        if(overlayScreen != null) {
+            if(!overlayScreen!!.boundingBox.contains(x, y)) {
+                closeOverlay()
+            }
+
+            return true
+        }
+
+        val pickRay: Ray = camera.getPickRay(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+
+        synchronized(loadedBases) {
+            loadedBases.forEach {
+                if(it.value.rayTest(pickRay, camera)) {
+                    showOverlay(PlayerBaseOverlay(it.value.backendData))
+
+                    return true
                 }
             }
         }
 
-        if(targetPoint != null && lastUpdatePoint.sphericalDistance(targetPoint) >= 150) {
-            actualiseFeatures()
+        synchronized(loadedStops) {
+            loadedStops.forEach {
+                if(it.value.rayTest(pickRay, camera)) {
+                    showOverlay(RewardStopOverlay(it.value.backendData))
+
+                    return true
+                }
+            }
+        }
+
+        return true
+    }
+
+    fun showOverlay(overlay: Overlay) {
+        if(overlayScreen != null) {
+            overlayScreen!!.hide()
+        }
+
+        overlayScreen = overlay
+
+        overlayScreen!!.show()
+    }
+
+    fun closeOverlay() {
+        if(overlayScreen != null) {
+            overlayScreen!!.hide()
+
+            overlayScreen = null
         }
     }
 
@@ -310,6 +377,8 @@ class ARWorld : Screen, InputHandler {
         floorShader.dispose()
         hudRenderer.dispose()
 
+        closeOverlay()
+
         game.inputHandler.removeInputHandler(this)
     }
 
@@ -317,4 +386,12 @@ class ARWorld : Screen, InputHandler {
     override fun resume() {}
     override fun hide() {}
     override fun show() {}
+
+    interface Overlay {
+        val boundingBox: Rectangle
+
+        fun show()
+        fun hide()
+        fun render()
+    }
 }
