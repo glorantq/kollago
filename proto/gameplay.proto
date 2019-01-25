@@ -18,3 +18,16 @@ message NearFeaturesResponse {
     repeated StopData stopData = 1;
     repeated BaseData baseData = 2;
 }
+
+message CollectStop {
+    string firebaseUid = 1;
+    Coordinates position = 2;
+
+    string stopId = 3;
+}
+
+message CollectStopResponse {
+    string stopId = 1;
+
+    ProfileData updatedProfile = 2;
+}

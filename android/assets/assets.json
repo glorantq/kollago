@@ -1,13 +1,23 @@
 {
   "textures": [
+    "base/error.png",
+    "base/petal.jpg",
+    "base/template.png",
+    "gui/avatar_overlay.png",
     "gui/background.png",
     "gui/button_hover.png",
     "gui/button_hover_repeat.png",
     "gui/button_normal.png",
     "gui/button_normal_repeat.png",
+    "gui/level_progress_0.png",
+    "gui/level_progress_1.png",
     "gui/logo.png",
+    "gui/menu_bg.png",
+    "gui/profile_bg.png",
+    "gui/spinning_coin.png",
     "gui/text_input.png",
     "gui/text_input_repeat.png",
+    "lakker.png",
     "player/deku/ch00_j00_arm.png",
     "player/deku/ch00_j00_cheek.png",
     "player/deku/ch00_j00_chest.png",
@@ -31,7 +41,8 @@
     "portrait/1.png",
     "portrait/outline.png",
     "random/ch_random_body.png",
-    "sky/sky.png"
+    "sky/sky.png",
+    "template.png"
   ],
 
   "music": [],

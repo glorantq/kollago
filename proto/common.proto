@@ -13,6 +13,8 @@ message ProfileData {
     int64 coins = 4; // Optional
 
     string baseId = 5;
+    
+    string flag_id = 6;
 
     enum PlayerModel {
         DEKU = 0;
@@ -24,6 +26,7 @@ message StopData {
     string stop_id = 1;
     Coordinates coordinates = 2;
     string name = 3;
+    int64 timeout = 4;
 }
 
 message BaseData {

@@ -62,6 +62,21 @@ data class ProfileResponse(
     }
 }
 
+data class UpdateProfile(
+    val firebaseUid: String = "",
+    val xpDelta: Int = 0,
+    val coinsDelta: Int = 0,
+    val gameSecret: String = "",
+    val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+) : pbandk.Message<UpdateProfile> {
+    override operator fun plus(other: UpdateProfile?) = protoMergeImpl(other)
+    override val protoSize by lazy { protoSizeImpl() }
+    override fun protoMarshal(m: pbandk.Marshaller) = protoMarshalImpl(m)
+    companion object : pbandk.Message.Companion<UpdateProfile> {
+        override fun protoUnmarshal(u: pbandk.Unmarshaller) = UpdateProfile.protoUnmarshalImpl(u)
+    }
+}
+
 private fun LoginRequest.protoMergeImpl(plus: LoginRequest?): LoginRequest = plus?.copy(
     unknownFields = unknownFields + plus.unknownFields
 ) ?: this
@@ -168,6 +183,43 @@ private fun ProfileResponse.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.
     while (true) when (protoUnmarshal.readTag()) {
         0 -> return ProfileResponse(profile, protoUnmarshal.unknownFields())
         10 -> profile = protoUnmarshal.readMessage(ProfileData.Companion)
+        else -> protoUnmarshal.unknownField()
+    }
+}
+
+private fun UpdateProfile.protoMergeImpl(plus: UpdateProfile?): UpdateProfile = plus?.copy(
+    unknownFields = unknownFields + plus.unknownFields
+) ?: this
+
+private fun UpdateProfile.protoSizeImpl(): Int {
+    var protoSize = 0
+    if (firebaseUid.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(1) + pbandk.Sizer.stringSize(firebaseUid)
+    if (xpDelta != 0) protoSize += pbandk.Sizer.tagSize(2) + pbandk.Sizer.int32Size(xpDelta)
+    if (coinsDelta != 0) protoSize += pbandk.Sizer.tagSize(3) + pbandk.Sizer.int32Size(coinsDelta)
+    if (gameSecret.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(4) + pbandk.Sizer.stringSize(gameSecret)
+    protoSize += unknownFields.entries.sumBy { it.value.size() }
+    return protoSize
+}
+
+private fun UpdateProfile.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
+    if (firebaseUid.isNotEmpty()) protoMarshal.writeTag(10).writeString(firebaseUid)
+    if (xpDelta != 0) protoMarshal.writeTag(16).writeInt32(xpDelta)
+    if (coinsDelta != 0) protoMarshal.writeTag(24).writeInt32(coinsDelta)
+    if (gameSecret.isNotEmpty()) protoMarshal.writeTag(34).writeString(gameSecret)
+    if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
+}
+
+private fun UpdateProfile.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unmarshaller): UpdateProfile {
+    var firebaseUid = ""
+    var xpDelta = 0
+    var coinsDelta = 0
+    var gameSecret = ""
+    while (true) when (protoUnmarshal.readTag()) {
+        0 -> return UpdateProfile(firebaseUid, xpDelta, coinsDelta, gameSecret, protoUnmarshal.unknownFields())
+        10 -> firebaseUid = protoUnmarshal.readString()
+        16 -> xpDelta = protoUnmarshal.readInt32()
+        24 -> coinsDelta = protoUnmarshal.readInt32()
+        34 -> gameSecret = protoUnmarshal.readString()
         else -> protoUnmarshal.unknownField()
     }
 }

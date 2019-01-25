@@ -18,6 +18,7 @@ data class ProfileData(
     val xp: Long = 0L,
     val coins: Long = 0L,
     val baseId: String = "",
+    val flagId: String = "",
     val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
 ) : pbandk.Message<ProfileData> {
     override operator fun plus(other: ProfileData?) = protoMergeImpl(other)
@@ -45,6 +46,7 @@ data class StopData(
     val stopId: String = "",
     val coordinates: Coordinates? = null,
     val name: String = "",
+    val timeout: Long = 0L,
     val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
 ) : pbandk.Message<StopData> {
     override operator fun plus(other: StopData?) = protoMergeImpl(other)
@@ -111,6 +113,7 @@ private fun ProfileData.protoSizeImpl(): Int {
     if (xp != 0L) protoSize += pbandk.Sizer.tagSize(3) + pbandk.Sizer.int64Size(xp)
     if (coins != 0L) protoSize += pbandk.Sizer.tagSize(4) + pbandk.Sizer.int64Size(coins)
     if (baseId.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(5) + pbandk.Sizer.stringSize(baseId)
+    if (flagId.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(6) + pbandk.Sizer.stringSize(flagId)
     protoSize += unknownFields.entries.sumBy { it.value.size() }
     return protoSize
 }
@@ -121,6 +124,7 @@ private fun ProfileData.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
     if (xp != 0L) protoMarshal.writeTag(24).writeInt64(xp)
     if (coins != 0L) protoMarshal.writeTag(32).writeInt64(coins)
     if (baseId.isNotEmpty()) protoMarshal.writeTag(42).writeString(baseId)
+    if (flagId.isNotEmpty()) protoMarshal.writeTag(50).writeString(flagId)
     if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
 }
 
@@ -130,14 +134,16 @@ private fun ProfileData.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unma
     var xp = 0L
     var coins = 0L
     var baseId = ""
+    var flagId = ""
     while (true) when (protoUnmarshal.readTag()) {
         0 -> return ProfileData(username, model, xp, coins,
-            baseId, protoUnmarshal.unknownFields())
+            baseId, flagId, protoUnmarshal.unknownFields())
         10 -> username = protoUnmarshal.readString()
         16 -> model = protoUnmarshal.readEnum(ProfileData.PlayerModel.Companion)
         24 -> xp = protoUnmarshal.readInt64()
         32 -> coins = protoUnmarshal.readInt64()
         42 -> baseId = protoUnmarshal.readString()
+        50 -> flagId = protoUnmarshal.readString()
         else -> protoUnmarshal.unknownField()
     }
 }
@@ -152,6 +158,7 @@ private fun StopData.protoSizeImpl(): Int {
     if (stopId.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(1) + pbandk.Sizer.stringSize(stopId)
     if (coordinates != null) protoSize += pbandk.Sizer.tagSize(2) + pbandk.Sizer.messageSize(coordinates)
     if (name.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(3) + pbandk.Sizer.stringSize(name)
+    if (timeout != 0L) protoSize += pbandk.Sizer.tagSize(4) + pbandk.Sizer.int64Size(timeout)
     protoSize += unknownFields.entries.sumBy { it.value.size() }
     return protoSize
 }
@@ -160,6 +167,7 @@ private fun StopData.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
     if (stopId.isNotEmpty()) protoMarshal.writeTag(10).writeString(stopId)
     if (coordinates != null) protoMarshal.writeTag(18).writeMessage(coordinates)
     if (name.isNotEmpty()) protoMarshal.writeTag(26).writeString(name)
+    if (timeout != 0L) protoMarshal.writeTag(32).writeInt64(timeout)
     if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
 }
 
@@ -167,11 +175,13 @@ private fun StopData.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unmarsh
     var stopId = ""
     var coordinates: Coordinates? = null
     var name = ""
+    var timeout = 0L
     while (true) when (protoUnmarshal.readTag()) {
-        0 -> return StopData(stopId, coordinates, name, protoUnmarshal.unknownFields())
+        0 -> return StopData(stopId, coordinates, name, timeout, protoUnmarshal.unknownFields())
         10 -> stopId = protoUnmarshal.readString()
         18 -> coordinates = protoUnmarshal.readMessage(Coordinates.Companion)
         26 -> name = protoUnmarshal.readString()
+        32 -> timeout = protoUnmarshal.readInt64()
         else -> protoUnmarshal.unknownField()
     }
 }

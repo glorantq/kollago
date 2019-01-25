@@ -24,3 +24,12 @@ message ProfileRequest {
 message ProfileResponse {
 	ProfileData profile = 1;
 }
+
+message UpdateProfile {
+    string firebaseUid = 1;
+
+    int32 xpDelta = 2;
+    int32 coinsDelta = 3;
+
+    string gameSecret = 4;
+}

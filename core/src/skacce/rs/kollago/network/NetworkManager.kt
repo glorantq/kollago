@@ -1,5 +1,8 @@
 package skacce.rs.kollago.network
 
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Pixmap
+import com.badlogic.gdx.graphics.Texture
 import com.esotericsoftware.kryonet.Client
 import okhttp3.*
 import org.json.simple.JSONObject
@@ -10,6 +13,7 @@ import skacce.rs.kollago.ar.ARWorld
 import skacce.rs.kollago.network.handlers.GameplayNetworkHandler
 import skacce.rs.kollago.network.protocol.*
 import skacce.rs.kollago.screens.LoadingScreen
+import skacce.rs.kollago.utils.toCoordinates
 import java.io.IOException
 
 class NetworkManager {
@@ -28,6 +32,9 @@ class NetworkManager {
 
     var ownProfile: ProfileData = ProfileData()
         private set
+
+    val flagCache: MutableMap<String, Texture> = hashMapOf() // TODO
+    private val stopTimeouts: MutableMap<String, Long> = hashMapOf()
 
     fun performPost(url: String, data: String, callback: (success: Boolean, body: String) -> Unit) {
         val request: Request = Request.Builder().url(url).post(RequestBody.create(MediaType.parse("application/json"), data)).build()
@@ -89,6 +96,48 @@ class NetworkManager {
         }
     }
 
+    private fun downloadTextureData(url: String, callback: (Boolean, Texture?) -> Unit) {
+        val request: Request = Request.Builder().url(url).get().build()
+
+        okHttpClient.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                e.printStackTrace()
+
+                callback(false, null)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                val responseBody: ResponseBody = response.body()!!
+
+                val imageData: ByteArray = responseBody.bytes()
+
+                Gdx.app.postRunnable {
+                    val pixmap: Pixmap = Pixmap(imageData, 0, imageData.size)
+                    val loadedTexture: Texture = Texture(pixmap)
+
+                    callback(true, loadedTexture)
+                }
+
+                responseBody.close()
+            }
+        })
+    }
+
+    fun downloadFlag(flagId: String, callback: (Boolean, Texture?) -> Unit) {
+        if(flagCache.containsKey(flagId)) {
+            callback(true, flagCache[flagId])
+            return
+        }
+
+        downloadTextureData("$apiUrl/flag/$flagId?uid=$firebaseUid") { success, texture ->
+            if(success) {
+                flagCache[flagId] = texture!!
+            }
+
+            callback(success, texture)
+        }
+    }
+
     fun joinGameServer(callback: (success: Boolean) -> Unit) {
         if(gameServerAddress.isBlank() || nominatimAddress.isBlank()) {
             callback(false)
@@ -113,12 +162,15 @@ class NetworkManager {
         packetHandler.registerPacket(LoginResponse::class)
         packetHandler.registerPacket(ProfileRequest::class)
         packetHandler.registerPacket(ProfileResponse::class)
+        packetHandler.registerPacket(UpdateProfile::class)
 
         // gameplay.proto
 
         packetHandler.registerPacket(NearStops::class)
         packetHandler.registerPacket(NearBases::class)
         packetHandler.registerHandler(GameplayNetworkHandler.handleFeatureResponse)
+        packetHandler.registerPacket(CollectStop::class)
+        packetHandler.registerPacket(CollectStopResponse::class)
 
         kryoClient.addListener(packetHandler)
         kryoClient.start()
@@ -157,6 +209,28 @@ class NetworkManager {
         packetHandler.sendPacketForResponse(ProfileRequest(firebaseUid), kryoClient) {
             ownProfile = (it as ProfileResponse).profile!!
             callback(ownProfile.username.isNotBlank())
+        }
+    }
+
+    fun applyProfileUpdate(profile: ProfileData) {
+        ownProfile = profile
+    }
+
+    fun actualiseTimeout(stop: StopData) {
+        stopTimeouts[stop.stopId] = Math.max(stopTimeouts[stop.stopId] ?: 0, stop.timeout)
+    }
+
+    fun getStopTimeout(stop: StopData): Long = stopTimeouts[stop.stopId] ?: 0
+
+    fun collectStop(stop: StopData, position: GeoPoint, callback: (profile: ProfileData) -> Unit) {
+        if(getStopTimeout(stop) - System.currentTimeMillis() > 0) {
+            return
+        }
+
+        stopTimeouts[stop.stopId] = System.currentTimeMillis() + 300000
+
+        packetHandler.sendPacketForResponse(CollectStop(firebaseUid, position.toCoordinates(), stop.stopId), kryoClient) {
+            callback((it as CollectStopResponse).updatedProfile!!)
         }
     }
 

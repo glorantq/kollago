@@ -1,8 +1,8 @@
 package skacce.rs.kollago.network.protocol
 
 data class LoginRequest(
-    val firebaseUid: String = "",
-    val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+        val firebaseUid: String = "",
+        val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
 ) : pbandk.Message<LoginRequest> {
     override operator fun plus(other: LoginRequest?) = protoMergeImpl(other)
     override val protoSize by lazy { protoSizeImpl() }
@@ -13,9 +13,9 @@ data class LoginRequest(
 }
 
 data class LoginResponse(
-    val errorCode: LoginResponse.ErrorCode = LoginResponse.ErrorCode.fromValue(0),
-    val ownProfile: ProfileData? = null,
-    val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+        val errorCode: LoginResponse.ErrorCode = LoginResponse.ErrorCode.fromValue(0),
+        val ownProfile: ProfileData? = null,
+        val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
 ) : pbandk.Message<LoginResponse> {
     override operator fun plus(other: LoginResponse?) = protoMergeImpl(other)
     override val protoSize by lazy { protoSizeImpl() }
@@ -39,9 +39,9 @@ data class LoginResponse(
 }
 
 data class ProfileRequest(
-    val firebaseUid: String = "",
-    val gameSecret: String = "",
-    val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+        val firebaseUid: String = "",
+        val gameSecret: String = "",
+        val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
 ) : pbandk.Message<ProfileRequest> {
     override operator fun plus(other: ProfileRequest?) = protoMergeImpl(other)
     override val protoSize by lazy { protoSizeImpl() }
@@ -52,8 +52,8 @@ data class ProfileRequest(
 }
 
 data class ProfileResponse(
-    val profile: ProfileData? = null,
-    val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+        val profile: ProfileData? = null,
+        val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
 ) : pbandk.Message<ProfileResponse> {
     override operator fun plus(other: ProfileResponse?) = protoMergeImpl(other)
     override val protoSize by lazy { protoSizeImpl() }
@@ -63,8 +63,23 @@ data class ProfileResponse(
     }
 }
 
+data class UpdateProfile(
+        val firebaseUid: String = "",
+        val xpDelta: Int = 0,
+        val coinsDelta: Int = 0,
+        val gameSecret: String = "",
+        val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+) : pbandk.Message<UpdateProfile> {
+    override operator fun plus(other: UpdateProfile?) = protoMergeImpl(other)
+    override val protoSize by lazy { protoSizeImpl() }
+    override fun protoMarshal(m: pbandk.Marshaller) = protoMarshalImpl(m)
+    companion object : pbandk.Message.Companion<UpdateProfile> {
+        override fun protoUnmarshal(u: pbandk.Unmarshaller) = UpdateProfile.protoUnmarshalImpl(u)
+    }
+}
+
 private fun LoginRequest.protoMergeImpl(plus: LoginRequest?): LoginRequest = plus?.copy(
-    unknownFields = unknownFields + plus.unknownFields
+        unknownFields = unknownFields + plus.unknownFields
 ) ?: this
 
 private fun LoginRequest.protoSizeImpl(): Int {
@@ -89,8 +104,8 @@ private fun LoginRequest.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unm
 }
 
 private fun LoginResponse.protoMergeImpl(plus: LoginResponse?): LoginResponse = plus?.copy(
-    ownProfile = ownProfile?.plus(plus.ownProfile) ?: plus.ownProfile,
-    unknownFields = unknownFields + plus.unknownFields
+        ownProfile = ownProfile?.plus(plus.ownProfile) ?: plus.ownProfile,
+        unknownFields = unknownFields + plus.unknownFields
 ) ?: this
 
 private fun LoginResponse.protoSizeImpl(): Int {
@@ -119,7 +134,7 @@ private fun LoginResponse.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Un
 }
 
 private fun ProfileRequest.protoMergeImpl(plus: ProfileRequest?): ProfileRequest = plus?.copy(
-    unknownFields = unknownFields + plus.unknownFields
+        unknownFields = unknownFields + plus.unknownFields
 ) ?: this
 
 private fun ProfileRequest.protoSizeImpl(): Int {
@@ -148,8 +163,8 @@ private fun ProfileRequest.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.U
 }
 
 private fun ProfileResponse.protoMergeImpl(plus: ProfileResponse?): ProfileResponse = plus?.copy(
-    profile = profile?.plus(plus.profile) ?: plus.profile,
-    unknownFields = unknownFields + plus.unknownFields
+        profile = profile?.plus(plus.profile) ?: plus.profile,
+        unknownFields = unknownFields + plus.unknownFields
 ) ?: this
 
 private fun ProfileResponse.protoSizeImpl(): Int {
@@ -169,6 +184,43 @@ private fun ProfileResponse.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.
     while (true) when (protoUnmarshal.readTag()) {
         0 -> return ProfileResponse(profile, protoUnmarshal.unknownFields())
         10 -> profile = protoUnmarshal.readMessage(ProfileData.Companion)
+        else -> protoUnmarshal.unknownField()
+    }
+}
+
+private fun UpdateProfile.protoMergeImpl(plus: UpdateProfile?): UpdateProfile = plus?.copy(
+        unknownFields = unknownFields + plus.unknownFields
+) ?: this
+
+private fun UpdateProfile.protoSizeImpl(): Int {
+    var protoSize = 0
+    if (firebaseUid.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(1) + pbandk.Sizer.stringSize(firebaseUid)
+    if (xpDelta != 0) protoSize += pbandk.Sizer.tagSize(2) + pbandk.Sizer.int32Size(xpDelta)
+    if (coinsDelta != 0) protoSize += pbandk.Sizer.tagSize(3) + pbandk.Sizer.int32Size(coinsDelta)
+    if (gameSecret.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(4) + pbandk.Sizer.stringSize(gameSecret)
+    protoSize += unknownFields.entries.sumBy { it.value.size() }
+    return protoSize
+}
+
+private fun UpdateProfile.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
+    if (firebaseUid.isNotEmpty()) protoMarshal.writeTag(10).writeString(firebaseUid)
+    if (xpDelta != 0) protoMarshal.writeTag(16).writeInt32(xpDelta)
+    if (coinsDelta != 0) protoMarshal.writeTag(24).writeInt32(coinsDelta)
+    if (gameSecret.isNotEmpty()) protoMarshal.writeTag(34).writeString(gameSecret)
+    if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
+}
+
+private fun UpdateProfile.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unmarshaller): UpdateProfile {
+    var firebaseUid = ""
+    var xpDelta = 0
+    var coinsDelta = 0
+    var gameSecret = ""
+    while (true) when (protoUnmarshal.readTag()) {
+        0 -> return UpdateProfile(firebaseUid, xpDelta, coinsDelta, gameSecret, protoUnmarshal.unknownFields())
+        10 -> firebaseUid = protoUnmarshal.readString()
+        16 -> xpDelta = protoUnmarshal.readInt32()
+        24 -> coinsDelta = protoUnmarshal.readInt32()
+        34 -> gameSecret = protoUnmarshal.readString()
         else -> protoUnmarshal.unknownField()
     }
 }

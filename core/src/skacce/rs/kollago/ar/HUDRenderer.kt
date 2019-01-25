@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.NinePatch
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
+import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
 import ktx.math.plus
 import ktx.math.vec2
@@ -41,6 +42,8 @@ class HUDRenderer : InputHandler {
 
     private val avatarShader: ShaderProgram = ShaderProgram(Gdx.files.internal("shaders/profile_avatar.vert"), Gdx.files.internal("shaders/profile_avatar.frag"))
 
+    private val bounds: Rectangle = Rectangle(10f, 10f, profileBgSize.x, profileBgSize.y)
+
     private val temp: Vector2 = vec2()
     private val temp2: Vector2 = vec2()
 
@@ -64,7 +67,7 @@ class HUDRenderer : InputHandler {
 
         game.spriteBatch.draw(profileBg, 10f, 10f, profileBgSize)
 
-        game.textRenderer.drawCenteredText(profile.username, 10f + profileBgSize.x / 2, 10f + 25f, 30, "Hemi", FontStyle.NORMAL, Color.WHITE)
+        game.textRenderer.drawCenteredText(profile.username, 10f + profileBgSize.x / 2, 10f + 30f, 30, "Hemi", FontStyle.NORMAL, Color.WHITE)
 
         val levelText: String = "Lv. ${profile.level().toInt()}"
         temp.set(game.textRenderer.getTextSize(levelText, "Hemi", FontStyle.NORMAL, 24))
@@ -81,7 +84,13 @@ class HUDRenderer : InputHandler {
         if(progressWidth > 0) {
             levelProgress[1].draw(game.spriteBatch, temp.x, temp.y, progressWidth, temp2.y)
         }
+
+        // //
+
+        game.textRenderer.drawRightText("${profile.coins} coins", game.staticViewport.worldWidth, game.staticViewport.worldHeight - KollaGO.SAFE_AREA_OFFSET, 24, "Roboto", FontStyle.NORMAL, Color.RED, false)
     }
+
+    fun containsCoordinates(x: Float, y: Float): Boolean = bounds.contains(x, y)
 
     fun dispose() {
         game.inputHandler.removeInputHandler(this)

@@ -48,9 +48,9 @@ class PlayerBase(backendData: BaseData, private val vtmMap: VTMMap, private val 
 
     init {
         this.backendData = backendData
+        updateFlagTexture()
 
         val gpsPosition: Vector2 = vtmMap.toWorldPos(geoPoint) / mapResolutionScale
-
         transform(gpsPosition, rotation)
     }
 
@@ -100,8 +100,6 @@ class PlayerBase(backendData: BaseData, private val vtmMap: VTMMap, private val 
             return false
         }
 
-
-
         return Intersector.intersectRayBoundsFast(ray, boundingBox)
     }
 
@@ -109,12 +107,27 @@ class PlayerBase(backendData: BaseData, private val vtmMap: VTMMap, private val 
         val boundingBox = flagInstance.calculateBoundingBox(BoundingBox())
         boundingBox.mul(flagInstance.transform)
 
-        return boundingBox.getCenter(temp).dst(temp) / Math.max(boundingBox.width, boundingBox.depth) / 2
+        return boundingBox.getCenter(temp).dst(Vector3.Zero) / Math.max(boundingBox.width, boundingBox.depth) / 2
     }
 
     fun updateBackendData(newData: BaseData) {
         backendData = newData
-
         geoPoint = backendData.coordinates!!.toGeoPoint()
+
+        updateFlagTexture()
+    }
+
+    private fun updateFlagTexture() {
+        KollaGO.INSTANCE.networkManager.downloadFlag(backendData.ownerProfile!!.flagId) { success, texture ->
+            if(!success) {
+                Gdx.app.error("FlagDownload", "Failed to download flag!")
+                flagInstance.getMaterial("flag").set(TextureAttribute.createDiffuse(KollaGO.INSTANCE.textureManager["base/error.png"]))
+            } else {
+                Gdx.app.postRunnable {
+                    flagInstance.getMaterial("flag").set(TextureAttribute.createDiffuse(texture))
+                    Gdx.app.log("FlagDownload", "Updated flag!")
+                }
+            }
+        }
     }
 }

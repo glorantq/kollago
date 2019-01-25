@@ -121,7 +121,9 @@ class ARWorld : Screen, InputHandler {
     override fun render(delta: Float) {
         game.spriteBatch.end()
 
-        cameraController.active = overlayScreen == null
+        temp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+        temp.set(game.staticViewport.unproject(temp))
+        cameraController.active = overlayScreen == null && !hudRenderer.containsCoordinates(temp.x, temp.y)
 
         camera.update()
         worldViewport.apply()
@@ -218,6 +220,8 @@ class ARWorld : Screen, InputHandler {
             vtmMap.toWorldPos(targetPoint!!, temp2)
 
             playerRotation = temp2.sub(temp).angle(Vector2.Y)
+
+            System.gc()
         }
 
         if (mapLocation == targetPoint && selectedModel.isRunning()) {
@@ -244,7 +248,7 @@ class ARWorld : Screen, InputHandler {
             overlayScreen!!.render()
         }
 
-        game.textRenderer.drawWrappedText("${Gdx.graphics.framesPerSecond} FPS", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
+        game.textRenderer.drawWrappedText("${game.networkManager.flagCache.keys}", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
 
         if(targetPoint != null && lastUpdatePoint.sphericalDistance(targetPoint) >= 150) {
             actualiseFeatures()
@@ -279,7 +283,9 @@ class ARWorld : Screen, InputHandler {
         synchronized(loadedStops) {
             loadedStops.forEach {
                 if(it.value.rayTest(pickRay, camera)) {
-                    showOverlay(RewardStopOverlay(it.value.backendData))
+                    Gdx.app.postRunnable {
+                        showOverlay(RewardStopOverlay(it.value.backendData, vtmMap))
+                    }
 
                     return true
                 }
@@ -309,6 +315,7 @@ class ARWorld : Screen, InputHandler {
 
     fun createOrUpdateStop(stop: StopData) {
         synchronized(loadedStops) {
+            networkManager.actualiseTimeout(stop)
             loadedStops[stop.stopId] = RewardStop(stop.coordinates!!.toGeoPoint(), vtmMap, KollaGO.MAP_SCALE, stop)
         }
     }
