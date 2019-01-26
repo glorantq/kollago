@@ -41,6 +41,8 @@ class NetworkManager {
 
         okHttpClient.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                e.printStackTrace()
+
                 callback(false, "")
             }
 
