@@ -9,6 +9,7 @@ import org.json.simple.JSONObject
 import org.json.simple.parser.JSONParser
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
+import skacce.rs.kollago.Platform
 import skacce.rs.kollago.ar.ARWorld
 import skacce.rs.kollago.network.handlers.GameplayNetworkHandler
 import skacce.rs.kollago.network.protocol.*
@@ -17,7 +18,9 @@ import skacce.rs.kollago.utils.toCoordinates
 import java.io.IOException
 
 class NetworkManager {
-    private val apiUrl: String = KollaGO.INSTANCE.platform.getRemoteString("central_api_address", "http://central.kollago.skacce.rs:8080")
+    private val game: KollaGO = KollaGO.INSTANCE
+
+    private val apiUrl: String = game.platform.getRemoteString("central_api_address", "http://central.kollago.skacce.rs:8080")
     var gameServerAddress: String = ""
     var nominatimAddress: String = ""
     var firebaseUid: String = ""
@@ -33,8 +36,12 @@ class NetworkManager {
     var ownProfile: ProfileData = ProfileData()
         private set
 
-    val flagCache: MutableMap<String, Texture> = hashMapOf() // TODO
+    private val flagCache: MutableMap<String, Texture> = hashMapOf()
     private val stopTimeouts: MutableMap<String, Long> = hashMapOf()
+
+    private val performanceTraces: Map<String, Platform.NativePerformanceTrace> = mapOf(
+            "flag_download" to game.platform.createTrace("network_flag_download")
+    )
 
     fun performPost(url: String, data: String, callback: (success: Boolean, body: String) -> Unit) {
         val request: Request = Request.Builder().url(url).post(RequestBody.create(MediaType.parse("application/json"), data)).build()
@@ -53,9 +60,9 @@ class NetworkManager {
     }
 
     fun beginLoginSequence() {
-        KollaGO.INSTANCE.screen = LoadingScreen(AuthenticationLoadingPerformer()) {
-            KollaGO.INSTANCE.screen = LoadingScreen(JoinGameLoadingPerformer()) {
-                KollaGO.INSTANCE.screen = ARWorld()
+        game.screen = LoadingScreen(AuthenticationLoadingPerformer()) {
+            game.screen = LoadingScreen(JoinGameLoadingPerformer()) {
+                game.screen = ARWorld()
             }
         }
     }
@@ -99,6 +106,7 @@ class NetworkManager {
     }
 
     private fun downloadTextureData(url: String, callback: (Boolean, Texture?) -> Unit) {
+        Gdx.app.log("NetworkManager", "Downloading texture data from $url")
         val request: Request = Request.Builder().url(url).get().build()
 
         okHttpClient.newCall(request).enqueue(object : Callback {
@@ -128,8 +136,12 @@ class NetworkManager {
     fun downloadFlag(flagId: String, callback: (Boolean, Texture?) -> Unit) {
         if(flagCache.containsKey(flagId)) {
             callback(true, flagCache[flagId])
+
+            performanceTraces["flag_download"]!!.incrementMetric("cache", 1)
             return
         }
+
+        performanceTraces["flag_download"]!!.incrementMetric("download", 1)
 
         downloadTextureData("$apiUrl/flag/$flagId?uid=$firebaseUid") { success, texture ->
             if(success) {
@@ -145,6 +157,9 @@ class NetworkManager {
             callback(false)
             return
         }
+
+        val joinTrace: Platform.NativePerformanceTrace = game.platform.createTrace("network_join_game")
+        joinTrace.start()
 
         if(::kryoClient.isInitialized && kryoClient.isConnected) {
             kryoClient.dispose()
@@ -183,6 +198,8 @@ class NetworkManager {
             e.printStackTrace()
 
             callback(false)
+
+            joinTrace.stop()
             return
         }
 
@@ -196,10 +213,12 @@ class NetworkManager {
                 return@sendPacketForResponse
             }
 
-            ownProfile = response.ownProfile!!
+            applyProfileUpdate(response.ownProfile!!)
 
             callback(ownProfile.username.isNotBlank())
         }
+
+        joinTrace.stop()
     }
 
     fun updateProfile(callback: (success: Boolean) -> Unit) {
@@ -209,13 +228,14 @@ class NetworkManager {
         }
 
         packetHandler.sendPacketForResponse(ProfileRequest(firebaseUid), kryoClient) {
-            ownProfile = (it as ProfileResponse).profile!!
+            applyProfileUpdate((it as ProfileResponse).profile!!)
             callback(ownProfile.username.isNotBlank())
         }
     }
 
     fun applyProfileUpdate(profile: ProfileData) {
         ownProfile = profile
+        game.platform.updateCrashUser(firebaseUid, ownProfile)
     }
 
     fun actualiseTimeout(stop: StopData) {

@@ -22,11 +22,13 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.BufferUtils
+import com.badlogic.gdx.utils.GdxRuntimeException
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import ktx.math.vec2
 import ktx.math.vec3
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
+import skacce.rs.kollago.Platform
 import skacce.rs.kollago.ar.overlays.PlayerBaseOverlay
 import skacce.rs.kollago.ar.overlays.RewardStopOverlay
 import skacce.rs.kollago.ar.poi.PlayerBase
@@ -90,6 +92,9 @@ class ARWorld : Screen, InputHandler {
     private var overlayScreen: Overlay? = null
 
     init {
+        val initTrace: Platform.NativePerformanceTrace = game.platform.createTrace("world_load")
+        initTrace.start()
+
         game.inputHandler.addInputHandler(this)
         (Gdx.input.inputProcessor as InputMultiplexer).addProcessor(cameraController)
         Gdx.input.isCatchBackKey = true
@@ -116,9 +121,14 @@ class ARWorld : Screen, InputHandler {
 
         lastUpdatePoint = vtmMap.getLocation()
         actualiseFeatures()
+
+        initTrace.stop()
     }
 
     override fun render(delta: Float) {
+        val renderTrace: Platform.NativePerformanceTrace = game.platform.createTrace("render_world")
+        renderTrace.start()
+
         game.spriteBatch.end()
 
         temp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
@@ -140,6 +150,8 @@ class ARWorld : Screen, InputHandler {
             lastPlayerRotation = playerRotation
         }
 
+        val vtmTrace: Platform.NativePerformanceTrace = game.platform.createTrace("render_vtm_map")
+        vtmTrace.start()
         mapFrameBuffer.begin()
         Gdx.gl.glClearColor(0.9f, 0.9f, 0.89f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
@@ -149,6 +161,7 @@ class ARWorld : Screen, InputHandler {
 
         Gdx.gl.glEnable(GL20.GL_BLEND)
         mapFrameBuffer.end(0, 0, Gdx.graphics.width, Gdx.graphics.height)
+        vtmTrace.stop()
 
         modelBatch.begin(camera)
         modelBatch.render(skyModelInstance)
@@ -248,7 +261,11 @@ class ARWorld : Screen, InputHandler {
             overlayScreen!!.render()
         }
 
-        game.textRenderer.drawWrappedText("${game.networkManager.flagCache.keys}", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
+        val runtime: Runtime = Runtime.getRuntime()
+        val usedMemory: Long = (runtime.totalMemory() - runtime.freeMemory()) / 1048576L
+        val maxMemory: Long = runtime.maxMemory() / 1048576L
+        val availableMemory: Long = maxMemory - usedMemory
+        game.textRenderer.drawWrappedText("Memory: $usedMemory MB of $maxMemory MB ($availableMemory MB free) => ${100f - Math.round(availableMemory.toFloat() / maxMemory.toFloat() * 100f)}%\n${Gdx.graphics.framesPerSecond} FPS", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
 
         if(targetPoint != null && lastUpdatePoint.sphericalDistance(targetPoint) >= 150) {
             actualiseFeatures()
@@ -257,6 +274,8 @@ class ARWorld : Screen, InputHandler {
         if(Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
             closeOverlay()
         }
+
+        renderTrace.stop()
     }
 
     override fun tap(x: Float, y: Float, count: Int, button: Int): Boolean {
@@ -267,6 +286,9 @@ class ARWorld : Screen, InputHandler {
 
             return true
         }
+
+        val clickTrace: Platform.NativePerformanceTrace = game.platform.createTrace("world_raycast")
+        clickTrace.start()
 
         val pickRay: Ray = camera.getPickRay(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
 
@@ -291,6 +313,8 @@ class ARWorld : Screen, InputHandler {
                 }
             }
         }
+
+        clickTrace.stop()
 
         return true
     }
@@ -363,6 +387,9 @@ class ARWorld : Screen, InputHandler {
     }
 
     private fun actualiseFeatures() {
+        val featuresTrace: Platform.NativePerformanceTrace = game.platform.createTrace("world_actualise_features")
+        featuresTrace.start()
+
         val location: Coordinates = (if(targetPoint != null) targetPoint else vtmMap.getLocation())!!.toCoordinates()
 
         networkManager.packetHandler.sendPacket(NearStops(networkManager.firebaseUid, location), "", networkManager.kryoClient)
@@ -371,6 +398,8 @@ class ARWorld : Screen, InputHandler {
 
         lastUpdatePoint = location.toGeoPoint()
         System.gc()
+
+        featuresTrace.stop()
     }
 
     override fun resize(width: Int, height: Int) {

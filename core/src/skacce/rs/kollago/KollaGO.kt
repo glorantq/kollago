@@ -84,6 +84,9 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
         private set
 
     override fun create() {
+        val initTrace: Platform.NativePerformanceTrace = platform.createTrace("game_init")
+        initTrace.start()
+
         dialogs = GDXDialogsSystem.install()
 
         Gdx.app.log("KollaGO", "Setting up 2D graphics...")
@@ -118,6 +121,8 @@ class KollaGO private constructor(val platform: Platform, val textInputProvider:
                 setScreen(LoginScreen())
             }
         })
+
+        initTrace.stop()
     }
 
     override fun render() {

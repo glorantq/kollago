@@ -1,12 +1,11 @@
 package skacce.rs.kollago.network
 
+import com.badlogic.gdx.Gdx
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryonet.Connection
 import com.esotericsoftware.kryonet.Listener
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import pbandk.Message
 import java.lang.reflect.Method
 import java.util.*
@@ -15,8 +14,6 @@ import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.companionObjectInstance
 
 class PacketHandler(kryo: Kryo) : Listener() {
-    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
-
     private val packetMapping: BiMap<Int, KClass<Message<*>>> = HashBiMap.create()
     private val handlerMapping: MutableMap<KClass<Message<*>>, Handler> = hashMapOf()
     private val responseMapping: MutableMap<String, ResponseHandler> = hashMapOf()
@@ -30,7 +27,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
         handlerMapping[packet] = handler
         registerPacket(packet)
 
-        logger.info("Created handler for ${packet.simpleName}!")
+        Gdx.app.log("PacketHandler", "Created handler for ${packet.simpleName}!")
     }
 
     inline fun <reified T : Message<*>> registerHandler(crossinline handler: (connection: Connection, packet: T, responseId: String) -> Unit) {
@@ -42,7 +39,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
     fun <T : Message<*>> registerPacket(packet: KClass<T>) {
         packetMapping[packetMapping.size] = packet as KClass<Message<*>>
 
-        logger.info("Registered packet: ${packet.simpleName}")
+        Gdx.app.log("PacketHandler", "Registered packet: ${packet.simpleName}")
     }
 
     override fun received(connection: Connection?, `object`: Any) {
@@ -50,7 +47,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
             val packetWrapper: KryoMessageWrapper = `object`
 
             if(!packetMapping.containsKey(packetWrapper.messageId)) {
-                logger.warn("Received unknown message!")
+                Gdx.app.error("PacketHandler", "Received unknown message!")
                 return
             }
 
@@ -59,7 +56,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
             val method: Method? = packetClass.companionObject!!.java.getMethod("protoUnmarshal", ByteArray::class.java)
 
             if(method == null) {
-                logger.error("Failed to get unmarshal method!")
+                Gdx.app.error("PacketHandler", "Failed to get unmarshal method!")
                 return
             }
 
@@ -72,7 +69,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
                     responseMapping[responseId]!!(message)
                     responseMapping.remove(responseId)
 
-                    logger.info("Handled response $responseId")
+                    Gdx.app.log("PacketHandler", "Handled response $responseId")
 
                     return
                 }
@@ -81,14 +78,14 @@ class PacketHandler(kryo: Kryo) : Listener() {
             if(handlerMapping.containsKey(packetClass)) {
                 handlerMapping[packetClass]!!(connection!!, message, packetWrapper.responseId)
 
-                logger.info("Called handler for ${packetClass.simpleName}")
+                Gdx.app.log("PacketHandler", "Called handler for ${packetClass.simpleName}")
             }
         }
     }
 
     fun sendPacket(packet: Message<*>, responseId: String, connection: Connection) {
         if(!packetMapping.inverse().containsKey(packet::class)) {
-            logger.error("This packet isn't registered!")
+            Gdx.app.error("PacketHandler", "This packet isn't registered!")
         }
 
         val packetId: Int = packetMapping.inverse()[packet::class]!!
@@ -99,7 +96,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
 
     fun sendPacketForResponse(packet: Message<*>, connection: Connection, handler: ResponseHandler) {
         if(!packetMapping.inverse().containsKey(packet::class)) {
-            logger.error("This packet isn't registered!")
+            Gdx.app.error("PacketHandler", "This packet isn't registered!")
         }
 
         val packetId: Int = packetMapping.inverse()[packet::class]!!

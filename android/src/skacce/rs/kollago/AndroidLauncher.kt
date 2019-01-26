@@ -23,6 +23,8 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
+import com.badlogic.gdx.ApplicationLogger
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
 import com.badlogic.gdx.backends.android.surfaceview.GLSurfaceView20API18
@@ -41,6 +43,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.perf.FirebasePerformance
+import com.google.firebase.perf.metrics.Trace
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import org.oscim.android.canvas.AndroidGraphics
 import org.oscim.backend.GLAdapter
@@ -50,6 +53,7 @@ import org.oscim.gdx.GdxAssets
 import skacce.rs.kollago.input.text.TextInputListener
 import skacce.rs.kollago.input.text.TextInputProvider
 import skacce.rs.kollago.map.GdxGL
+import skacce.rs.kollago.network.protocol.ProfileData
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
@@ -203,20 +207,22 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
-        Log.i("StatusBar", "Height: $statusBarHeight")
+        Gdx.app.log("StatusBar", "Height: $statusBarHeight")
+
+        Gdx.app.applicationLogger = FirebaseCrashlyticsLogger()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        Log.i("Result", "Code: $requestCode")
+        Gdx.app.log("Result", "Code: $requestCode")
 
         if (requestCode > REQUEST_GOOGLE_SIGN_IN) {
             val offset: Int = requestCode - REQUEST_GOOGLE_SIGN_IN
             val callback: (Boolean, String) -> Unit = googleRequestMap[offset]!!
             googleRequestMap.remove(offset)
 
-            Log.i("Authentication", "Handling Google callback, offset: $offset")
+            Gdx.app.log("Authentication", "Handling Google callback, offset: $offset")
 
             val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(data)
 
@@ -224,7 +230,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
                 val account: GoogleSignInAccount = task.getResult(ApiException::class.java)!!
                 handleGoogleLogin(account, callback)
             } catch (e: ApiException) {
-                Log.e("Authentication", "Failed to sign in with Google!")
+                Gdx.app.error("Authentication", "Failed to sign in with Google!")
                 callback(false, e.localizedMessage)
             }
         }
@@ -248,7 +254,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
         runOnUiThread {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                Log.i("Location", "Requesting permission...")
+                Gdx.app.log("Location", "Requesting permission...")
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQUEST_LOCATION_PERMISSION)
             } else {
                 setUpLocationManager()
@@ -261,7 +267,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        Log.i("Location", "Got permission response!")
+        Gdx.app.log("Location", "Got permission response!")
 
         when (requestCode) {
             REQUEST_LOCATION_PERMISSION -> {
@@ -288,7 +294,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
     }
 
     private fun setUpLocationManager() {
-        tracedLog("Location", "Setting up LocationManager")
+        Gdx.app.log("Location", "Setting up LocationManager")
 
         locationManager = LocationServices.getFusedLocationProviderClient(this)
 
@@ -302,13 +308,13 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
         val settingsClient: SettingsClient = LocationServices.getSettingsClient(this)
 
-        tracedLog("Location", "Checking location settings")
+        Gdx.app.log("Location", "Checking location settings")
         settingsClient.checkLocationSettings(requestBuilder.build()).addOnSuccessListener {
             setUpGPS()
         }.addOnFailureListener {
             if(it is ResolvableApiException) {
                 try {
-                    tracedLog("Location", "Starting resolution")
+                    Gdx.app.log("Location", "Starting resolution")
                     it.startResolutionForResult(this, REQUEST_CHECK_SETTINGS)
                 } catch (e: Exception) {
                     locationInitFuture.complete(false)
@@ -321,7 +327,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
     private fun setUpGPS() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            tracedLog("Location", "Setting up location client")
+            Gdx.app.log("Location", "Setting up location client")
 
             val locationRequest: LocationRequest = LocationRequest.create().apply {
                 interval = 50
@@ -341,7 +347,7 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
                     }
                 }
 
-                tracedLog("Location", "GMS location setup complete")
+                Gdx.app.log("Location", "GMS location setup complete")
             }.addOnFailureListener {
                 locationInitFuture.complete(false)
             }
@@ -428,12 +434,12 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         firebaseAuth.currentUser?.getIdToken(true)?.addOnCompleteListener {
             callback(it.result?.token ?: "")
         }?.addOnFailureListener {
-            Log.e("Authentication", "Failed to get UID!")
+            Gdx.app.error("Authentication", "Failed to get UID!")
             it.printStackTrace()
 
             callback("")
         }?.addOnCanceledListener {
-            Log.e("Authentication", "getIdToken Task got canceled!")
+            Gdx.app.error("Authentication", "getIdToken Task got canceled!")
 
             callback("")
         } ?: callback("")
@@ -451,27 +457,27 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
     override fun performEmailAuth(email: String, password: String, register: Boolean, callback: (success: Boolean, message: String) -> Unit) {
         if (register) {
             firebaseAuth.createUserWithEmailAndPassword(email, password).addOnSuccessListener {
-                Log.i("Authentication", "User successfully registered!")
+                Gdx.app.log("Authentication", "User successfully registered!")
 
                 it.user.sendEmailVerification()
                 callback(true, "")
             }.addOnFailureListener {
-                Log.e("Authentication", "Failed to register account!")
+                Gdx.app.error("Authentication", "Failed to register account!")
                 it.printStackTrace()
 
                 callback(false, it.localizedMessage)
             }.addOnCanceledListener {
-                Log.e("Authentication", "createUserWithEmailAndPassword Task got canceled!")
+                Gdx.app.error("Authentication", "createUserWithEmailAndPassword Task got canceled!")
 
                 callback(false, "Megszakítva")
             }
         } else {
             firebaseAuth.signInWithEmailAndPassword(email, password).addOnSuccessListener {
-                Log.i("Authentication", "User successfully signed in!")
+                Gdx.app.log("Authentication", "User successfully signed in!")
 
                 callback(true, "")
             }.addOnFailureListener {
-                Log.e("Authentication", "Failed to log in!")
+                Gdx.app.error("Authentication", "Failed to log in!")
                 it.printStackTrace()
 
                 callback(false, it.localizedMessage)
@@ -494,14 +500,14 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
 
     private fun handleGoogleLogin(user: GoogleSignInAccount, callback: (success: Boolean, message: String) -> Unit) {
         val credential: AuthCredential = GoogleAuthProvider.getCredential(user.idToken, null)
-        Log.i("Authentication", "Google getCredentials")
+        Gdx.app.log("Authentication", "Google getCredentials")
 
         firebaseAuth.signInWithCredential(credential).addOnSuccessListener {
-            Log.i("Authentication", "User successfully signed in!")
+            Gdx.app.log("Authentication", "User successfully signed in!")
 
             callback(true, "")
         }.addOnFailureListener {
-            Log.e("Authentication", "Failed to log in!")
+            Gdx.app.error("Authentication", "Failed to log in!")
             it.printStackTrace()
 
             callback(false, it.localizedMessage)
@@ -570,11 +576,57 @@ class AndroidLauncher : AndroidApplication(), Platform, TextInputProvider {
         return remoteConfig.getString(key)
     }
 
-    override fun tracedLog(tag: String, message: String) {
-        Crashlytics.log(Log.INFO, tag, message)
+    class FirebaseCrashlyticsLogger : ApplicationLogger {
+        override fun error(tag: String?, message: String?) {
+            Crashlytics.log(Log.ERROR, tag, message)
+        }
+
+        override fun error(tag: String?, message: String?, exception: Throwable?) {
+            Crashlytics.log(Log.ERROR, tag, message)
+            Crashlytics.logException(exception)
+        }
+
+        override fun log(tag: String?, message: String?) {
+            Crashlytics.log(Log.INFO, tag, message)
+        }
+
+        override fun log(tag: String?, message: String?, exception: Throwable?) {
+            Crashlytics.log(Log.INFO, tag, message)
+            Crashlytics.logException(exception)
+        }
+
+        override fun debug(tag: String?, message: String?) {
+            Crashlytics.log(Log.DEBUG, tag, message)
+        }
+
+        override fun debug(tag: String?, message: String?, exception: Throwable?) {
+            Crashlytics.log(Log.DEBUG, tag, message)
+            Crashlytics.logException(exception)
+        }
     }
 
-    override fun debugString(): String {
-        return "Loc: $lastLocation, acc: ${lastLocation.accuracy}, prov.: ${lastLocation.provider}"
+    override fun createTrace(traceName: String): Platform.NativePerformanceTrace {
+        return FirebasePerformanceTrace(traceName)
+    }
+
+    class FirebasePerformanceTrace(name: String) : Platform.NativePerformanceTrace {
+        private val trace: Trace = FirebasePerformance.getInstance().newTrace(name)
+
+        override fun getAttribute(attribute: String): String? = trace.getAttribute(attribute)
+        override fun getAttributes(): Map<String, String> = trace.attributes
+        override fun getLongMetric(metricName: String): Long = trace.getLongMetric(metricName)
+        override fun incrementMetric(metricName: String, incrementBy: Long) = trace.incrementMetric(metricName, incrementBy)
+        override fun putAttribute(attribute: String, value: String) = trace.putAttribute(attribute, value)
+        override fun putMetric(metricName: String, value: Long) = trace.putMetric(metricName, value)
+        override fun removeAttribute(attribute: String) = trace.removeAttribute(attribute)
+
+        override fun start() = trace.start()
+        override fun stop() = trace.stop()
+    }
+
+    override fun updateCrashUser(uid: String, profile: ProfileData) {
+        Crashlytics.setUserIdentifier(uid)
+        Crashlytics.setUserName(profile.username!!)
+        Crashlytics.setUserEmail(firebaseAuth.currentUser?.email ?: "")
     }
 }

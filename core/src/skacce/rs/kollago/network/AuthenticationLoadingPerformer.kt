@@ -23,24 +23,24 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
         thread {
             val platform: Platform = KollaGO.INSTANCE.platform
 
-            platform.tracedLog("Authentication", "Starting config refresh")
+            Gdx.app.log("Authentication", "Starting config refresh")
 
             platform.updateRemoteConfig {
                 if (!it) {
                     failWithDialog("Firebase", "Nem elérhető A Firebase szerver!")
                     return@updateRemoteConfig
                 } else {
-                    platform.tracedLog("Authentication", "Refreshed config, checking GPS...")
+                    Gdx.app.log("Authentication", "Refreshed config, checking GPS...")
 
                     if (!platform.checkGpsState()) {
-                        platform.tracedLog("Authentication", "Starting GPS init")
+                        Gdx.app.log("Authentication", "Starting GPS init")
                         platform.initGps().thenAccept {
                             if (it) {
-                                platform.tracedLog("Authentication", "GPS init done")
+                                Gdx.app.log("Authentication", "GPS init done")
                                 loadingProgress = 20
                                 continueLoginGPS()
                             } else {
-                                platform.tracedLog("Authentication", "Failed to init GPS")
+                                Gdx.app.error("Authentication", "Failed to init GPS")
                                 failWithDialog("GPS", "Nem elérhető a GPS! Jobb hibaüzenet bitte")
                             }
                         }
@@ -55,7 +55,7 @@ class AuthenticationLoadingPerformer : LoadingScreen.LoadingPerformer {
     private fun continueLoginGPS() {
         val platform: Platform = KollaGO.INSTANCE.platform
 
-        platform.tracedLog("Authentication", "Starting login")
+        Gdx.app.log("Authentication", "Starting login")
 
         if (!platform.isLoggedIn()) {
             KollaGO.INSTANCE.screen = LoginScreen()

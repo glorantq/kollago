@@ -67,7 +67,7 @@ class HUDRenderer : InputHandler {
 
         game.spriteBatch.draw(profileBg, 10f, 10f, profileBgSize)
 
-        game.textRenderer.drawCenteredText(profile.username, 10f + profileBgSize.x / 2, 10f + 30f, 30, "Hemi", FontStyle.NORMAL, Color.WHITE)
+        game.textRenderer.drawCenteredText(profile.username, 10f + profileBgSize.x / 2, 10f + 25f, 30, "Hemi", FontStyle.NORMAL, Color.WHITE)
 
         val levelText: String = "Lv. ${profile.level().toInt()}"
         temp.set(game.textRenderer.getTextSize(levelText, "Hemi", FontStyle.NORMAL, 24))

@@ -18,6 +18,7 @@ import skacce.rs.kollago.Platform
 import skacce.rs.kollago.input.text.TextInputListener
 import skacce.rs.kollago.input.text.TextInputProvider
 import skacce.rs.kollago.map.GdxGL
+import skacce.rs.kollago.network.protocol.ProfileData
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -96,12 +97,12 @@ class DesktopLauncher : Platform, TextInputProvider {
         callback(true)
     }
 
-    override fun tracedLog(tag: String, message: String) {
+    override fun updateCrashUser(uid: String, profile: ProfileData) {
 
     }
 
-    override fun debugString(): String {
-        return ""
+    override fun createTrace(traceName: String): Platform.NativePerformanceTrace {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     class DesktopUser : Platform.NativeAuthUser {
