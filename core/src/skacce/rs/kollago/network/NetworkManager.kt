@@ -39,10 +39,6 @@ class NetworkManager {
     private val flagCache: MutableMap<String, Texture> = hashMapOf()
     private val stopTimeouts: MutableMap<String, Long> = hashMapOf()
 
-    private val performanceTraces: Map<String, Platform.NativePerformanceTrace> = mapOf(
-            "flag_download" to game.platform.createTrace("network_flag_download")
-    )
-
     fun performPost(url: String, data: String, callback: (success: Boolean, body: String) -> Unit) {
         val request: Request = Request.Builder().url(url).post(RequestBody.create(MediaType.parse("application/json"), data)).build()
 
@@ -134,14 +130,18 @@ class NetworkManager {
     }
 
     fun downloadFlag(flagId: String, callback: (Boolean, Texture?) -> Unit) {
+        val flagTrace: Platform.NativePerformanceTrace = game.platform.createTrace("network_flag_download")
+        flagTrace.start()
+
         if(flagCache.containsKey(flagId)) {
             callback(true, flagCache[flagId])
 
-            performanceTraces["flag_download"]!!.incrementMetric("cache", 1)
+            flagTrace.incrementMetric("cache", 1)
+            flagTrace.stop()
             return
         }
 
-        performanceTraces["flag_download"]!!.incrementMetric("download", 1)
+        flagTrace.incrementMetric("download", 1)
 
         downloadTextureData("$apiUrl/flag/$flagId?uid=$firebaseUid") { success, texture ->
             if(success) {
@@ -149,6 +149,8 @@ class NetworkManager {
             }
 
             callback(success, texture)
+
+            flagTrace.stop()
         }
     }
 
@@ -219,6 +221,11 @@ class NetworkManager {
         }
 
         joinTrace.stop()
+    }
+
+    fun actualiseFeatures(location: Coordinates) {
+        packetHandler.sendPacket(NearStops(firebaseUid, location), "", kryoClient)
+        packetHandler.sendPacket(NearBases(firebaseUid, location), "", kryoClient)
     }
 
     fun updateProfile(callback: (success: Boolean) -> Unit) {

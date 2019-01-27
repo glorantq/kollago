@@ -261,11 +261,7 @@ class ARWorld : Screen, InputHandler {
             overlayScreen!!.render()
         }
 
-        val runtime: Runtime = Runtime.getRuntime()
-        val usedMemory: Long = (runtime.totalMemory() - runtime.freeMemory()) / 1048576L
-        val maxMemory: Long = runtime.maxMemory() / 1048576L
-        val availableMemory: Long = maxMemory - usedMemory
-        game.textRenderer.drawWrappedText("Memory: $usedMemory MB of $maxMemory MB ($availableMemory MB free) => ${100f - Math.round(availableMemory.toFloat() / maxMemory.toFloat() * 100f)}%\n${Gdx.graphics.framesPerSecond} FPS", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
+        game.textRenderer.drawWrappedText("", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
 
         if(targetPoint != null && lastUpdatePoint.sphericalDistance(targetPoint) >= 150) {
             actualiseFeatures()
@@ -392,8 +388,7 @@ class ARWorld : Screen, InputHandler {
 
         val location: Coordinates = (if(targetPoint != null) targetPoint else vtmMap.getLocation())!!.toCoordinates()
 
-        networkManager.packetHandler.sendPacket(NearStops(networkManager.firebaseUid, location), "", networkManager.kryoClient)
-        networkManager.packetHandler.sendPacket(NearBases(networkManager.firebaseUid, location), "", networkManager.kryoClient)
+        networkManager.actualiseFeatures(location)
         removeFarFeatures()
 
         lastUpdatePoint = location.toGeoPoint()

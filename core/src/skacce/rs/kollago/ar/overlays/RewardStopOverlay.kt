@@ -20,9 +20,12 @@ import skacce.rs.kollago.graphics.RepeatedNinePatch
 import skacce.rs.kollago.graphics.text.FontStyle
 import skacce.rs.kollago.input.InputHandler
 import skacce.rs.kollago.map.VTMMap
+import skacce.rs.kollago.network.protocol.ProfileData
 import skacce.rs.kollago.network.protocol.StopData
+import skacce.rs.kollago.utils.toCoordinates
 import skacce.rs.kollago.utils.toGeoPoint
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 
 class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) : ARWorld.Overlay, InputHandler {
     private companion object {
@@ -51,6 +54,8 @@ class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) 
     private val temp: Vector2 = vec2()
     private val temp2: Vector2 = vec2()
 
+    private val random: Random = Random()
+
     private val viewport: Viewport = game.staticViewport
 
     private lateinit var nameBackground: RepeatedNinePatch
@@ -59,6 +64,9 @@ class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) 
 
     private var coinStateTime: Float = 0f
     private val geoPoint: GeoPoint = stop.coordinates!!.toGeoPoint()
+
+    private val coinBounds: Rectangle = Rectangle()
+    private val itemBubbles: MutableList<ItemBubble> = CopyOnWriteArrayList()
 
     override fun show() {
         val width: Float = viewport.worldWidth - 90f
@@ -74,6 +82,10 @@ class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) 
 
     override fun hide() {
         game.inputHandler.removeInputHandler(this)
+
+        synchronized(itemBubbles) {
+            itemBubbles.clear()
+        }
     }
 
     override fun render() {
@@ -98,7 +110,8 @@ class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) 
             game.spriteBatch.shader = greyscaleShader
         }
 
-        game.spriteBatch.draw(spinningCoin.getKeyFrame(coinStateTime), boundingBox.x + boundingBox.width / 2 - 390f / 2f, temp.y - 390f - 60f, 390f, 390f)
+        coinBounds.set(boundingBox.x + boundingBox.width / 2 - 390f / 2f, temp.y - 390f - 60f, 390f, 390f)
+        game.spriteBatch.draw(spinningCoin.getKeyFrame(coinStateTime), coinBounds.x, coinBounds.y, coinBounds.width, coinBounds.height)
 
         game.spriteBatch.shader = null
 
@@ -124,13 +137,122 @@ class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) 
 
             game.textRenderer.drawCenteredText(statusMessage, temp.x + temp2.x / 2, temp.y + temp2.y / 2, 30, "Hemi", FontStyle.NORMAL, redColour)
         }
+
+        synchronized(itemBubbles) {
+            itemBubbles.forEach {
+                it.render()
+            }
+        }
     }
 
     override fun tap(x: Float, y: Float, count: Int, button: Int): Boolean {
-        game.networkManager.collectStop(stop, vtmMap.getLocation()) {
-            game.networkManager.applyProfileUpdate(it)
+        if(coinBounds.contains(x, y)) {
+            game.networkManager.collectStop(stop, vtmMap.getLocation()) {
+                val currentProfile: ProfileData = game.networkManager.ownProfile
+
+                var coinsGained: Long = it.coins - currentProfile.coins
+
+                game.networkManager.applyProfileUpdate(it)
+
+                val coin100s: Int = (coinsGained / 100).toInt()
+                coinsGained %= 100
+
+                val coin10s: Int = (coinsGained / 10).toInt()
+                coinsGained %= 10
+
+                val coin1s: Int = coinsGained.toInt()
+
+                for(i: Int in 0 until coin100s) {
+                    createItemBubble("gui/coin_100.png")
+                }
+
+                for(i: Int in 0 until coin10s) {
+                    createItemBubble("gui/coin_10.png")
+                }
+
+                for(i: Int in 0 until coin1s) {
+                    createItemBubble("gui/coin_1.png")
+                }
+
+                game.networkManager.actualiseFeatures(vtmMap.getLocation().toCoordinates())
+            }
+        }
+
+        synchronized(itemBubbles) {
+            for(bubble: ItemBubble in itemBubbles) {
+                if(bubble.click(x, y)) {
+                    break
+                }
+            }
         }
 
         return true
+    }
+
+    private fun createItemBubble(texture: String) {
+        Gdx.app.postRunnable {
+            synchronized(itemBubbles) {
+                val baseX: Float = coinBounds.x
+                val baseY: Float = coinBounds.y
+
+                temp.set(baseX + Math.max((random.nextInt(coinBounds.width.toInt() * 2) - coinBounds.width).toDouble(), 0.0).toFloat(),
+                        baseY + Math.max((random.nextInt(coinBounds.height.toInt() * 2) - coinBounds.height).toDouble(), 0.0).toFloat())
+
+                val bubble: ItemBubble = ItemBubble(texture, temp.cpy())
+                bubble.onClickHandler = {
+                    synchronized(itemBubbles) {
+                        itemBubbles.remove(bubble)
+                    }
+                }
+
+                itemBubbles.add(bubble)
+            }
+        }
+    }
+
+    private class ItemBubble(itemTexture: String, private val initialPosition: Vector2) {
+        private companion object {
+            private val game: KollaGO = KollaGO.INSTANCE
+
+            private val bubbleTexture: Texture = game.textureManager["gui/item_bubble.png"]
+            private val bubbleSize: Vector2 = vec2(128f, 128f)
+            private val textureSize: Vector2 = bubbleSize.cpy().sub(40f, 40f)
+
+            private val random: Random = Random(System.nanoTime())
+        }
+
+        private val texture: Texture = game.textureManager[itemTexture]
+
+        lateinit var onClickHandler: () -> Unit
+
+        private val position: Vector2 = Vector2(initialPosition)
+
+        private val timeOffset: Int = random.nextInt(100)
+        private val directionX: Int = if(random.nextBoolean()) 1 else -1
+        private val directionY: Int = if(random.nextBoolean()) 1 else -1
+
+        fun render() {
+            val time: Double = (Gdx.graphics.frameId + timeOffset).toDouble() / 100.0
+
+            val newX: Float = initialPosition.x + (directionX * Math.sin(time) * bubbleSize.x / 4f).toFloat()
+            val newY: Float = initialPosition.y + (directionY * Math.cos(time) * bubbleSize.y / 8f).toFloat()
+
+            position.set(newX, newY)
+
+            game.spriteBatch.draw(texture, position.x + 20f, position.y + 20f, textureSize.x, textureSize.y)
+            game.spriteBatch.draw(bubbleTexture, position.x, position.y, bubbleSize.x, bubbleSize.y)
+        }
+
+        fun click(x: Float, y: Float): Boolean {
+            if(Rectangle.tmp.set(position.x, position.y, bubbleSize.x, bubbleSize.y).contains(x, y)) {
+                if(::onClickHandler.isInitialized) {
+                    onClickHandler()
+                }
+
+                return true
+            }
+
+            return false
+        }
     }
 }
