@@ -66,6 +66,47 @@ data class CollectStopResponse(
     }
 }
 
+data class FetchBase(
+    val firebaseUid: String = "",
+    val baseId: String = "",
+    val gameSecret: String = "",
+    val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+) : pbandk.Message<FetchBase> {
+    override operator fun plus(other: FetchBase?) = protoMergeImpl(other)
+    override val protoSize by lazy { protoSizeImpl() }
+    override fun protoMarshal(m: pbandk.Marshaller) = protoMarshalImpl(m)
+    companion object : pbandk.Message.Companion<FetchBase> {
+        override fun protoUnmarshal(u: pbandk.Unmarshaller) = FetchBase.protoUnmarshalImpl(u)
+    }
+}
+
+data class AttackBase(
+    val firebaseUid: String = "",
+    val targetBaseId: String = "",
+    val position: Coordinates? = null,
+    val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+) : pbandk.Message<AttackBase> {
+    override operator fun plus(other: AttackBase?) = protoMergeImpl(other)
+    override val protoSize by lazy { protoSizeImpl() }
+    override fun protoMarshal(m: pbandk.Marshaller) = protoMarshalImpl(m)
+    companion object : pbandk.Message.Companion<AttackBase> {
+        override fun protoUnmarshal(u: pbandk.Unmarshaller) = AttackBase.protoUnmarshalImpl(u)
+    }
+}
+
+data class AttackResult(
+    val success: Boolean = false,
+    val updatedProfile: ProfileData? = null,
+    val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+) : pbandk.Message<AttackResult> {
+    override operator fun plus(other: AttackResult?) = protoMergeImpl(other)
+    override val protoSize by lazy { protoSizeImpl() }
+    override fun protoMarshal(m: pbandk.Marshaller) = protoMarshalImpl(m)
+    companion object : pbandk.Message.Companion<AttackResult> {
+        override fun protoUnmarshal(u: pbandk.Unmarshaller) = AttackResult.protoUnmarshalImpl(u)
+    }
+}
+
 private fun NearStops.protoMergeImpl(plus: NearStops?): NearStops = plus?.copy(
     position = position?.plus(plus.position) ?: plus.position,
     unknownFields = unknownFields + plus.unknownFields
@@ -220,6 +261,103 @@ private fun CollectStopResponse.Companion.protoUnmarshalImpl(protoUnmarshal: pba
     while (true) when (protoUnmarshal.readTag()) {
         0 -> return CollectStopResponse(stopId, updatedProfile, protoUnmarshal.unknownFields())
         10 -> stopId = protoUnmarshal.readString()
+        18 -> updatedProfile = protoUnmarshal.readMessage(ProfileData.Companion)
+        else -> protoUnmarshal.unknownField()
+    }
+}
+
+private fun FetchBase.protoMergeImpl(plus: FetchBase?): FetchBase = plus?.copy(
+    unknownFields = unknownFields + plus.unknownFields
+) ?: this
+
+private fun FetchBase.protoSizeImpl(): Int {
+    var protoSize = 0
+    if (firebaseUid.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(1) + pbandk.Sizer.stringSize(firebaseUid)
+    if (baseId.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(2) + pbandk.Sizer.stringSize(baseId)
+    if (gameSecret.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(3) + pbandk.Sizer.stringSize(gameSecret)
+    protoSize += unknownFields.entries.sumBy { it.value.size() }
+    return protoSize
+}
+
+private fun FetchBase.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
+    if (firebaseUid.isNotEmpty()) protoMarshal.writeTag(10).writeString(firebaseUid)
+    if (baseId.isNotEmpty()) protoMarshal.writeTag(18).writeString(baseId)
+    if (gameSecret.isNotEmpty()) protoMarshal.writeTag(26).writeString(gameSecret)
+    if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
+}
+
+private fun FetchBase.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unmarshaller): FetchBase {
+    var firebaseUid = ""
+    var baseId = ""
+    var gameSecret = ""
+    while (true) when (protoUnmarshal.readTag()) {
+        0 -> return FetchBase(firebaseUid, baseId, gameSecret, protoUnmarshal.unknownFields())
+        10 -> firebaseUid = protoUnmarshal.readString()
+        18 -> baseId = protoUnmarshal.readString()
+        26 -> gameSecret = protoUnmarshal.readString()
+        else -> protoUnmarshal.unknownField()
+    }
+}
+
+private fun AttackBase.protoMergeImpl(plus: AttackBase?): AttackBase = plus?.copy(
+    position = position?.plus(plus.position) ?: plus.position,
+    unknownFields = unknownFields + plus.unknownFields
+) ?: this
+
+private fun AttackBase.protoSizeImpl(): Int {
+    var protoSize = 0
+    if (firebaseUid.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(1) + pbandk.Sizer.stringSize(firebaseUid)
+    if (targetBaseId.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(2) + pbandk.Sizer.stringSize(targetBaseId)
+    if (position != null) protoSize += pbandk.Sizer.tagSize(3) + pbandk.Sizer.messageSize(position)
+    protoSize += unknownFields.entries.sumBy { it.value.size() }
+    return protoSize
+}
+
+private fun AttackBase.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
+    if (firebaseUid.isNotEmpty()) protoMarshal.writeTag(10).writeString(firebaseUid)
+    if (targetBaseId.isNotEmpty()) protoMarshal.writeTag(18).writeString(targetBaseId)
+    if (position != null) protoMarshal.writeTag(26).writeMessage(position)
+    if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
+}
+
+private fun AttackBase.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unmarshaller): AttackBase {
+    var firebaseUid = ""
+    var targetBaseId = ""
+    var position: Coordinates? = null
+    while (true) when (protoUnmarshal.readTag()) {
+        0 -> return AttackBase(firebaseUid, targetBaseId, position, protoUnmarshal.unknownFields())
+        10 -> firebaseUid = protoUnmarshal.readString()
+        18 -> targetBaseId = protoUnmarshal.readString()
+        26 -> position = protoUnmarshal.readMessage(Coordinates.Companion)
+        else -> protoUnmarshal.unknownField()
+    }
+}
+
+private fun AttackResult.protoMergeImpl(plus: AttackResult?): AttackResult = plus?.copy(
+    updatedProfile = updatedProfile?.plus(plus.updatedProfile) ?: plus.updatedProfile,
+    unknownFields = unknownFields + plus.unknownFields
+) ?: this
+
+private fun AttackResult.protoSizeImpl(): Int {
+    var protoSize = 0
+    if (success) protoSize += pbandk.Sizer.tagSize(1) + pbandk.Sizer.boolSize(success)
+    if (updatedProfile != null) protoSize += pbandk.Sizer.tagSize(2) + pbandk.Sizer.messageSize(updatedProfile)
+    protoSize += unknownFields.entries.sumBy { it.value.size() }
+    return protoSize
+}
+
+private fun AttackResult.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
+    if (success) protoMarshal.writeTag(8).writeBool(success)
+    if (updatedProfile != null) protoMarshal.writeTag(18).writeMessage(updatedProfile)
+    if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
+}
+
+private fun AttackResult.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unmarshaller): AttackResult {
+    var success = false
+    var updatedProfile: ProfileData? = null
+    while (true) when (protoUnmarshal.readTag()) {
+        0 -> return AttackResult(success, updatedProfile, protoUnmarshal.unknownFields())
+        8 -> success = protoUnmarshal.readBool()
         18 -> updatedProfile = protoUnmarshal.readMessage(ProfileData.Companion)
         else -> protoUnmarshal.unknownField()
     }

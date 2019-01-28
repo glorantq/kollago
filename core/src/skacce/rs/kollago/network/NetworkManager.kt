@@ -180,7 +180,7 @@ class NetworkManager {
         packetHandler.registerPacket(LoginRequest::class)
         packetHandler.registerPacket(LoginResponse::class)
         packetHandler.registerPacket(ProfileRequest::class)
-        packetHandler.registerPacket(ProfileResponse::class)
+        packetHandler.registerHandler(GameplayNetworkHandler.handleProfileResponse)
         packetHandler.registerPacket(UpdateProfile::class)
 
         // gameplay.proto
@@ -190,6 +190,9 @@ class NetworkManager {
         packetHandler.registerHandler(GameplayNetworkHandler.handleFeatureResponse)
         packetHandler.registerPacket(CollectStop::class)
         packetHandler.registerPacket(CollectStopResponse::class)
+        packetHandler.registerPacket(FetchBase::class)
+        packetHandler.registerPacket(AttackBase::class)
+        packetHandler.registerHandler(GameplayNetworkHandler.handleAttackResult)
 
         kryoClient.addListener(packetHandler)
         kryoClient.start()
@@ -226,6 +229,12 @@ class NetworkManager {
     fun actualiseFeatures(location: Coordinates) {
         packetHandler.sendPacket(NearStops(firebaseUid, location), "", kryoClient)
         packetHandler.sendPacket(NearBases(firebaseUid, location), "", kryoClient)
+    }
+
+    fun updateBase(baseId: String, callback: (BaseData) -> Unit = {}) {
+        packetHandler.sendPacketForResponse(FetchBase(firebaseUid, baseId), kryoClient) {
+            callback((it as NearFeaturesResponse).baseData[0])
+        }
     }
 
     fun updateProfile(callback: (success: Boolean) -> Unit) {

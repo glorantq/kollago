@@ -1,5 +1,6 @@
 package skacce.rs.kollago.ar.overlays
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.NinePatch
@@ -11,12 +12,10 @@ import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.ar.ARWorld
 import skacce.rs.kollago.graphics.RepeatedNinePatch
 import skacce.rs.kollago.graphics.text.FontStyle
+import skacce.rs.kollago.network.protocol.AttackBase
 import skacce.rs.kollago.network.protocol.BaseData
 import skacce.rs.kollago.network.protocol.ProfileData
-import skacce.rs.kollago.utils.level
-import skacce.rs.kollago.utils.levelProgress
-import skacce.rs.kollago.utils.levelXp
-import skacce.rs.kollago.utils.xpToNextLevel
+import skacce.rs.kollago.utils.*
 
 class PlayerBaseOverlay(private val base: BaseData) : ARWorld.Overlay {
     override val boundingBox: Rectangle = Rectangle()
@@ -89,5 +88,15 @@ class PlayerBaseOverlay(private val base: BaseData) : ARWorld.Overlay {
         val xpText: String = "${ownerProfile.xp - ownerProfile.levelXp(ownerProfile.level().toInt().toFloat())} XP"
         temp2.set(game.textRenderer.getTextSize(xpText, "Hemi", FontStyle.NORMAL, 24))
         game.textRenderer.drawText(xpText, temp.x + (portraitSize + 10f) / 2 - temp2.x / 2, temp.y - 10f, 24, "Hemi", FontStyle.NORMAL, Color.WHITE, false)
+
+        var seconds: Int = (base.timeout - System.currentTimeMillis()).toInt() / 1000
+        val minutes: Int = seconds / 60
+
+        seconds -= minutes * 60
+        game.textRenderer.drawText("Power: ${base.calculatePowerLevel()} || Timeout: $minutes:$seconds", 100f, 100f, 30, "Roboto", FontStyle.NORMAL, Color.RED, true)
+
+        if(Gdx.input.justTouched()) {
+            game.networkManager.packetHandler.sendPacket(AttackBase(game.networkManager.firebaseUid, base.baseId, base.coordinates), "", game.networkManager.kryoClient)
+        }
     }
 }

@@ -38,4 +38,6 @@ message BaseData {
     Coordinates coordinates = 4;
 
     ProfileData ownerProfile = 5; // Optional
+
+    int64 timeout = 6;
 }

@@ -7,8 +7,10 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.math.Vector2
 import ktx.math.vec2
 import org.oscim.core.GeoPoint
+import skacce.rs.kollago.network.protocol.BaseData
 import skacce.rs.kollago.network.protocol.Coordinates
 import skacce.rs.kollago.network.protocol.ProfileData
+import java.util.*
 
 fun Model.newInstance(): ModelInstance = ModelInstance(this)
 
@@ -50,6 +52,23 @@ fun ProfileData.levelProgress(): Float {
     } else {
         rawLevel - rawLevel.toInt()
     }
+}
+
+fun BaseData.calculatePowerLevel(): Float {
+    val xp: Long = this.ownerProfile!!.xp
+
+    return xp.toFloat() / 100f + this.level * 2
+}
+
+fun BaseData.calculateVictoryChance(other: BaseData): Float {
+    val thisPowerLevel: Float = this.calculatePowerLevel()
+    val otherPowerLevel: Float = other.calculatePowerLevel()
+
+    return 1f / (1f + Math.pow(10.0, (otherPowerLevel - thisPowerLevel) / 100.0)).toFloat()
+}
+
+fun BaseData.calculateCoinVictory(chance: Float, maxCoins: Int, random: Random): Int {
+    return ((1f - chance) * maxCoins.toFloat()).toInt() + random.nextInt(maxCoins / 10 - 1) + 1
 }
 
 fun Texture.fit(target: Vector2): Vector2 {

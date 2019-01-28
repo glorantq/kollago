@@ -31,3 +31,22 @@ message CollectStopResponse {
 
     ProfileData updatedProfile = 2;
 }
+
+message FetchBase {
+    string firebaseUid = 1;
+    string baseId = 2;
+
+    string gameSecret = 3; // Set by the game server when forwarding to the central server
+}
+
+message AttackBase {
+    string firebaseUid = 1;
+    string targetBaseId = 2;
+
+    Coordinates position = 3;
+}
+
+message AttackResult {
+    bool success = 1;
+    ProfileData updatedProfile = 2;
+}

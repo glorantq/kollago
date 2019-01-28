@@ -174,7 +174,7 @@ class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) 
                     createItemBubble("gui/coin_1.png")
                 }
 
-                game.networkManager.actualiseFeatures(vtmMap.getLocation().toCoordinates())
+                game.networkManager.updateBase(game.networkManager.ownProfile.baseId)
             }
         }
 

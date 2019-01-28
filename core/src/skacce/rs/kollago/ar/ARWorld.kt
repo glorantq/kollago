@@ -43,7 +43,7 @@ import java.nio.IntBuffer
 import java.util.*
 
 class ARWorld : Screen, InputHandler {
-    private fun framebufferSize(): Int = (KollaGO.MAP_RESOLUTION * (KollaGO.MAP_SCALE + 2f)).toInt()
+    private fun framebufferSize(): Int = (KollaGO.MAP_RESOLUTION * (KollaGO.MAP_SCALE + 1f)).toInt()
 
     private val temp: Vector2 = vec2()
     private val temp2: Vector2 = vec2()
@@ -291,7 +291,11 @@ class ARWorld : Screen, InputHandler {
         synchronized(loadedBases) {
             loadedBases.forEach {
                 if(it.value.rayTest(pickRay, camera)) {
-                    showOverlay(PlayerBaseOverlay(it.value.backendData))
+                    networkManager.updateBase(it.value.backendData.baseId) {
+                        Gdx.app.postRunnable {
+                            showOverlay(PlayerBaseOverlay(it))
+                        }
+                    }
 
                     return true
                 }
