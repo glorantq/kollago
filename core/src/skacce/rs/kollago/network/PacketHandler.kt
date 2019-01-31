@@ -42,7 +42,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
         Gdx.app.log("PacketHandler", "Registered packet: ${packet.simpleName}")
     }
 
-    override fun received(connection: Connection?, `object`: Any) {
+    override fun received(connection: Connection, `object`: Any) {
         if(`object` is KryoMessageWrapper) {
             val packetWrapper: KryoMessageWrapper = `object`
 
@@ -76,7 +76,7 @@ class PacketHandler(kryo: Kryo) : Listener() {
             }
 
             if(handlerMapping.containsKey(packetClass)) {
-                handlerMapping[packetClass]!!(connection!!, message, packetWrapper.responseId)
+                handlerMapping[packetClass]!!(connection, message, packetWrapper.responseId)
 
                 Gdx.app.log("PacketHandler", "Called handler for ${packetClass.simpleName}")
             }

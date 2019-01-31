@@ -36,6 +36,8 @@ class NetworkManager {
     var ownProfile: ProfileData = ProfileData()
         private set
 
+    var ownBase: BaseData = BaseData()
+
     private val flagCache: MutableMap<String, Texture> = hashMapOf()
     private val stopTimeouts: MutableMap<String, Long> = hashMapOf()
 

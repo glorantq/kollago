@@ -67,7 +67,7 @@ fun BaseData.calculateVictoryChance(other: BaseData): Float {
     return 1f / (1f + Math.pow(10.0, (otherPowerLevel - thisPowerLevel) / 100.0)).toFloat()
 }
 
-fun BaseData.calculateCoinVictory(chance: Float, maxCoins: Int, random: Random): Int {
+fun BaseData.calculateWeightedReward(chance: Float, maxCoins: Int, random: Random): Int {
     return ((1f - chance) * maxCoins.toFloat()).toInt() + random.nextInt(maxCoins / 10 - 1) + 1
 }
 

@@ -29,6 +29,7 @@ import ktx.math.vec3
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.Platform
+import skacce.rs.kollago.ar.overlays.LoadingOverlay
 import skacce.rs.kollago.ar.overlays.PlayerBaseOverlay
 import skacce.rs.kollago.ar.overlays.RewardStopOverlay
 import skacce.rs.kollago.ar.poi.PlayerBase
@@ -291,9 +292,13 @@ class ARWorld : Screen, InputHandler {
         synchronized(loadedBases) {
             loadedBases.forEach {
                 if(it.value.rayTest(pickRay, camera)) {
-                    networkManager.updateBase(it.value.backendData.baseId) {
-                        Gdx.app.postRunnable {
-                            showOverlay(PlayerBaseOverlay(it))
+                    Gdx.app.postRunnable {
+                        showOverlay(LoadingOverlay())
+
+                        networkManager.updateBase(it.value.backendData.baseId) {
+                            Gdx.app.postRunnable {
+                                showOverlay(PlayerBaseOverlay(it, vtmMap))
+                            }
                         }
                     }
 

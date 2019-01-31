@@ -8,22 +8,32 @@ import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.utils.viewport.Viewport
 import ktx.math.vec2
+import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.ar.ARWorld
 import skacce.rs.kollago.graphics.RepeatedNinePatch
 import skacce.rs.kollago.graphics.text.FontStyle
+import skacce.rs.kollago.gui.elements.GuiButton
+import skacce.rs.kollago.map.VTMMap
 import skacce.rs.kollago.network.protocol.AttackBase
 import skacce.rs.kollago.network.protocol.BaseData
 import skacce.rs.kollago.network.protocol.ProfileData
 import skacce.rs.kollago.utils.*
 
-class PlayerBaseOverlay(private val base: BaseData) : ARWorld.Overlay {
-    override val boundingBox: Rectangle = Rectangle()
+class PlayerBaseOverlay(private val base: BaseData, private val vtmMap: VTMMap) : ARWorld.Overlay {
+    private companion object {
+        private val game: KollaGO = KollaGO.INSTANCE
 
-    private val game: KollaGO = KollaGO.INSTANCE
+        fun getLevelTexture(base: BaseData): Texture = game.textureManager["base/levels/${base.level}.png"]
+    }
+
+    override val boundingBox: Rectangle = Rectangle()
 
     private val temp: Vector2 = vec2()
     private val temp2: Vector2 = vec2()
+    private val temp3: Vector2 = vec2()
+
+    private val geoPoint: GeoPoint = base.coordinates!!.toGeoPoint()
 
     private val viewport: Viewport = game.staticViewport
 
@@ -43,20 +53,36 @@ class PlayerBaseOverlay(private val base: BaseData) : ARWorld.Overlay {
             NinePatch(game.textureManager["gui/level_progress_1.png"], 4, 4, 4, 4)
     )
 
+    private val levelTexture: Texture = getLevelTexture(base)
+    private val levelTextureSize: Vector2 = Vector2()
+
+    private lateinit var attackButton: GuiButton
+
     override fun show() {
         val width: Float = viewport.worldWidth - 90f
-        val height: Float = (viewport.worldHeight - KollaGO.SAFE_AREA_OFFSET) / 2f
 
+        levelTextureSize.set(levelTexture.scaleToWidth(width - 60f))
         portraitSize = width / 2 - 50f
 
-        temp.set(game.textRenderer.getTextSize(base.ownerProfile!!.username, "Hemi",  FontStyle.NORMAL, 35))
+        val height: Float = (viewport.worldHeight - KollaGO.SAFE_AREA_OFFSET) / 1.3f
+
+        temp.set(game.textRenderer.getTextSize(base.ownerProfile!!.username, "Hemi", FontStyle.NORMAL, 35))
 
         boundingBox.set(viewport.worldWidth / 2 - width / 2, (viewport.worldHeight - KollaGO.SAFE_AREA_OFFSET) / 2f - height / 2, width, height)
+
         nameBackground = RepeatedNinePatch("gui/button_normal.png", "gui/button_normal_repeat.png", (boundingBox.x + boundingBox.width / 2 + 5f).toInt(), 47, 47, 50, 50)
+        attackButton = GuiButton(boundingBox.x + 10f, boundingBox.y + 20f + KollaGO.SAFE_AREA_OFFSET / 2, boundingBox.width - 20f, 75f, "Valós", GuiButton.Style())
+        attackButton.enabled = base.baseId != game.networkManager.ownBase.baseId
+
+        attackButton.clickHandler = {
+            (game.screen as ARWorld).showOverlay(AttackConfirmationOverlay(base, vtmMap))
+        }
+
+        attackButton.create()
     }
 
     override fun hide() {
-
+        attackButton.destroy()
     }
 
     override fun render() {
@@ -65,6 +91,7 @@ class PlayerBaseOverlay(private val base: BaseData) : ARWorld.Overlay {
         background.draw(game.spriteBatch, viewport.worldWidth / 2 - boundingBox.width / 2, viewport.worldHeight / 2 - boundingBox.height / 2, boundingBox.width, boundingBox.height)
 
         temp.set(boundingBox.x + boundingBox.width / 2 - 5f - portraitSize, boundingBox.y + boundingBox.height - portraitSize)
+        temp3.set(temp)
         game.spriteBatch.draw(playerPortraits[ownerProfile.model.value], temp.x, temp.y, portraitSize, portraitSize)
         game.spriteBatch.draw(portraitOutline, temp.x - 10f, temp.y - 10f, portraitSize + 10f, portraitSize + 10f)
 
@@ -79,7 +106,7 @@ class PlayerBaseOverlay(private val base: BaseData) : ARWorld.Overlay {
 
         val progressWidth: Float = (portraitSize + 10f) * ownerProfile.levelProgress()
 
-        if(progressWidth > 0) {
+        if (progressWidth > 0) {
             levelProgress[1].draw(game.spriteBatch, temp.x, temp.y, progressWidth, 32f)
         }
 
@@ -89,14 +116,34 @@ class PlayerBaseOverlay(private val base: BaseData) : ARWorld.Overlay {
         temp2.set(game.textRenderer.getTextSize(xpText, "Hemi", FontStyle.NORMAL, 24))
         game.textRenderer.drawText(xpText, temp.x + (portraitSize + 10f) / 2 - temp2.x / 2, temp.y - 10f, 24, "Hemi", FontStyle.NORMAL, Color.WHITE, false)
 
-        var seconds: Int = (base.timeout - System.currentTimeMillis()).toInt() / 1000
-        val minutes: Int = seconds / 60
+        temp2.set(boundingBox.x + boundingBox.width / 2 - levelTextureSize.x / 2, temp3.y - 40f - levelTextureSize.y)
+        game.spriteBatch.draw(levelTexture, temp2, levelTextureSize)
 
-        seconds -= minutes * 60
-        game.textRenderer.drawText("Power: ${base.calculatePowerLevel()} || Timeout: $minutes:$seconds", 100f, 100f, 30, "Roboto", FontStyle.NORMAL, Color.RED, true)
+        game.textRenderer.drawText("Power: ${base.calculatePowerLevel()} || ${game.networkManager.ownBase.calculateVictoryChance(base) * 100f}%", 100f, 100f, 30, "Roboto", FontStyle.NORMAL, Color.RED, true)
 
-        if(Gdx.input.justTouched()) {
-            game.networkManager.packetHandler.sendPacket(AttackBase(game.networkManager.firebaseUid, base.baseId, base.coordinates), "", game.networkManager.kryoClient)
+        val distance: Float = geoPoint.sphericalDistance(vtmMap.getLocation()).toFloat()
+        val timeout: Long = base.timeout - System.currentTimeMillis()
+
+        val message: String = when {
+            base.baseId == game.networkManager.ownBase.baseId -> "Nem támadhatod meg saját magad!"
+
+        // distance > 50f -> "Túl messze vagy"
+
+            timeout > 0 -> {
+                var seconds: Long = timeout / 1000L
+                val minutes: Long = seconds / 60L
+
+                seconds -= minutes * 60L
+
+                "Ez a bázis %02d:%02d múlva lesz támadható".format(minutes, seconds)
+            }
+
+            else -> "Támadás"
         }
+
+        attackButton.text = message
+        attackButton.enabled = /*distance <= 50 &&*/ timeout <= 0 && base.baseId != game.networkManager.ownBase.baseId
+
+        attackButton.render(game.spriteBatch, Gdx.graphics.deltaTime)
     }
 }

@@ -23,6 +23,12 @@ object GameplayNetworkHandler {
 
                 packet.baseData.forEach {
                     screen.createOrUpdateBase(it)
+
+                    if(it.ownerProfile!!.baseId == KollaGO.INSTANCE.networkManager.ownProfile.baseId) {
+                        KollaGO.INSTANCE.networkManager.ownBase = it
+
+                        Gdx.app.log("GameplayHandler", "Updated own base!")
+                    }
                 }
             }
         }

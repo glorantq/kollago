@@ -70,9 +70,10 @@ class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) 
 
     override fun show() {
         val width: Float = viewport.worldWidth - 90f
-        val height: Float = (viewport.worldHeight - KollaGO.SAFE_AREA_OFFSET) / 2f + 20f
 
         temp.set(game.textRenderer.getWrappedTextSize(stop.name, "Hemi", FontStyle.NORMAL, 35, width - 60f, Align.center))
+
+        val height: Float = temp.y + 390f + 100f + 75f + (temp.y + 50f) / 2f + temp.y / 2f + KollaGO.SAFE_AREA_OFFSET
 
         nameBackground = RepeatedNinePatch("gui/button_normal.png", "gui/button_normal_repeat.png", width.toInt() - 20, 47, 47, 50, 50)
         boundingBox.set(viewport.worldWidth / 2 - width / 2, (viewport.worldHeight - KollaGO.SAFE_AREA_OFFSET) / 2f - height / 2, width, height)
@@ -124,7 +125,7 @@ class RewardStopOverlay(private val stop: StopData, private val vtmMap: VTMMap) 
 
                 seconds -= minutes * 60
 
-                String.format(Locale.getDefault(), "A stop %02d:%02d múlva lesz használható", minutes, seconds)
+                "A stop %02d:%02d múlva lesz használható".format(minutes, seconds)
             }
 
             else -> ""
