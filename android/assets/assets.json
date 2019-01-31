@@ -1,6 +1,9 @@
 {
   "textures": [
     "base/error.png",
+    "base/levels/1.png",
+    "base/levels/2.png",
+    "base/levels/3.png",
     "base/petal.jpg",
     "base/template.png",
     "gui/avatar_overlay.png",
@@ -15,6 +18,7 @@
     "gui/item_bubble.png",
     "gui/level_progress_0.png",
     "gui/level_progress_1.png",
+    "gui/loading_circle.png",
     "gui/logo.png",
     "gui/menu_bg.png",
     "gui/profile_bg.png",
