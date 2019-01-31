@@ -15,12 +15,10 @@ import skacce.rs.kollago.graphics.RepeatedNinePatch
 import skacce.rs.kollago.graphics.text.FontStyle
 import skacce.rs.kollago.gui.elements.GuiButton
 import skacce.rs.kollago.map.VTMMap
-import skacce.rs.kollago.network.protocol.AttackBase
-import skacce.rs.kollago.network.protocol.BaseData
-import skacce.rs.kollago.network.protocol.ProfileData
+import skacce.rs.kollago.network.protocol.*
 import skacce.rs.kollago.utils.*
 
-class PlayerBaseOverlay(private val base: BaseData, private val vtmMap: VTMMap) : ARWorld.Overlay {
+class PlayerBaseOverlay(private val base: BaseData, private val vtmMap: VTMMap, private val showSettings: Boolean = false) : ARWorld.Overlay {
     private companion object {
         private val game: KollaGO = KollaGO.INSTANCE
 
@@ -56,7 +54,10 @@ class PlayerBaseOverlay(private val base: BaseData, private val vtmMap: VTMMap) 
     private val levelTexture: Texture = getLevelTexture(base)
     private val levelTextureSize: Vector2 = Vector2()
 
-    private lateinit var attackButton: GuiButton
+    private val guiButtons: MutableList<GuiButton> = ArrayList()
+
+    private var attackButton: GuiButton? = null
+    private var moveBaseButton: GuiButton? = null
 
     override fun show() {
         val width: Float = viewport.worldWidth - 90f
@@ -71,18 +72,38 @@ class PlayerBaseOverlay(private val base: BaseData, private val vtmMap: VTMMap) 
         boundingBox.set(viewport.worldWidth / 2 - width / 2, (viewport.worldHeight - KollaGO.SAFE_AREA_OFFSET) / 2f - height / 2, width, height)
 
         nameBackground = RepeatedNinePatch("gui/button_normal.png", "gui/button_normal_repeat.png", (boundingBox.x + boundingBox.width / 2 + 5f).toInt(), 47, 47, 50, 50)
-        attackButton = GuiButton(boundingBox.x + 10f, boundingBox.y + 20f + KollaGO.SAFE_AREA_OFFSET / 2, boundingBox.width - 20f, 75f, "Valós", GuiButton.Style())
-        attackButton.enabled = base.baseId != game.networkManager.ownBase.baseId
 
-        attackButton.clickHandler = {
-            (game.screen as ARWorld).showOverlay(AttackConfirmationOverlay(base, vtmMap))
+        temp.set(boundingBox.x + 10f, boundingBox.y + 20f + KollaGO.SAFE_AREA_OFFSET / 2)
+        temp2.set(boundingBox.width - 20f, 75f)
+
+        if (showSettings) {
+            moveBaseButton = GuiButton(temp.x, temp.y, temp2.x, temp2.y, "Bázis Áthelyezése", GuiButton.Style())
+
+            moveBaseButton!!.clickHandler = clickHandler@{
+                (game.screen as ARWorld).showOverlay(MoveBaseConfirmationOverlay(vtmMap))
+            }
+
+            guiButtons.add(moveBaseButton!!)
+        } else {
+            attackButton = GuiButton(temp.x, temp.y, temp2.x, temp2.y, "Valós", GuiButton.Style())
+            attackButton!!.enabled = base.baseId != game.networkManager.ownBase.baseId
+
+            attackButton!!.clickHandler = {
+                (game.screen as ARWorld).showOverlay(AttackConfirmationOverlay(base, vtmMap))
+            }
+
+            guiButtons.add(attackButton!!)
         }
 
-        attackButton.create()
+        guiButtons.forEach {
+            it.create()
+        }
     }
 
     override fun hide() {
-        attackButton.destroy()
+        guiButtons.forEach {
+            it.destroy()
+        }
     }
 
     override fun render() {
@@ -112,14 +133,12 @@ class PlayerBaseOverlay(private val base: BaseData, private val vtmMap: VTMMap) 
 
         game.textRenderer.drawCenteredText("Lv. ${ownerProfile.level().toInt()}", temp.x + (portraitSize + 10f) / 2, temp.y + 16f, 24, "Hemi", FontStyle.NORMAL, Color.WHITE)
 
-        val xpText: String = "${ownerProfile.xp - ownerProfile.levelXp(ownerProfile.level().toInt().toFloat())} XP"
+        val xpText: String = "${Math.max(0, ownerProfile.xp - ownerProfile.levelXp(ownerProfile.level().toInt().toFloat()))} XP"
         temp2.set(game.textRenderer.getTextSize(xpText, "Hemi", FontStyle.NORMAL, 24))
         game.textRenderer.drawText(xpText, temp.x + (portraitSize + 10f) / 2 - temp2.x / 2, temp.y - 10f, 24, "Hemi", FontStyle.NORMAL, Color.WHITE, false)
 
         temp2.set(boundingBox.x + boundingBox.width / 2 - levelTextureSize.x / 2, temp3.y - 40f - levelTextureSize.y)
         game.spriteBatch.draw(levelTexture, temp2, levelTextureSize)
-
-        game.textRenderer.drawText("Power: ${base.calculatePowerLevel()} || ${game.networkManager.ownBase.calculateVictoryChance(base) * 100f}%", 100f, 100f, 30, "Roboto", FontStyle.NORMAL, Color.RED, true)
 
         val distance: Float = geoPoint.sphericalDistance(vtmMap.getLocation()).toFloat()
         val timeout: Long = base.timeout - System.currentTimeMillis()
@@ -127,7 +146,7 @@ class PlayerBaseOverlay(private val base: BaseData, private val vtmMap: VTMMap) 
         val message: String = when {
             base.baseId == game.networkManager.ownBase.baseId -> "Nem támadhatod meg saját magad!"
 
-        // distance > 50f -> "Túl messze vagy"
+            distance > 50f -> "Túl messze vagy"
 
             timeout > 0 -> {
                 var seconds: Long = timeout / 1000L
@@ -138,12 +157,16 @@ class PlayerBaseOverlay(private val base: BaseData, private val vtmMap: VTMMap) 
                 "Ez a bázis %02d:%02d múlva lesz támadható".format(minutes, seconds)
             }
 
+            game.networkManager.ownProfile.coins < 1000 -> "Nincs elég pénzed!"
+
             else -> "Támadás"
         }
 
-        attackButton.text = message
-        attackButton.enabled = /*distance <= 50 &&*/ timeout <= 0 && base.baseId != game.networkManager.ownBase.baseId
+        attackButton?.text = message
+        attackButton?.enabled = distance <= 50 && timeout <= 0 && base.baseId != game.networkManager.ownBase.baseId && game.networkManager.ownProfile.coins >= 1000
 
-        attackButton.render(game.spriteBatch, Gdx.graphics.deltaTime)
+        guiButtons.forEach {
+            it.render(game.spriteBatch, Gdx.graphics.deltaTime)
+        }
     }
 }

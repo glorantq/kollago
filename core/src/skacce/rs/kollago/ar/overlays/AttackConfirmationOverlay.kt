@@ -30,8 +30,6 @@ class AttackConfirmationOverlay(private val base: BaseData, private val vtmMap: 
     private val temp2: Vector2 = vec2()
     private val temp3: Vector2 = vec2()
 
-    private val geoPoint: GeoPoint = base.coordinates!!.toGeoPoint()
-
     private val viewport: Viewport = game.staticViewport
 
     private lateinit var textBackground: RepeatedNinePatch

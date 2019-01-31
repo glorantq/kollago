@@ -40,4 +40,6 @@ message BaseData {
     ProfileData ownerProfile = 5; // Optional
 
     int64 timeout = 6;
+
+    int64 lastMoved = 7; // Optional
 }

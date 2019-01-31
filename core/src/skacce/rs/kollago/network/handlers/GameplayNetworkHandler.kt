@@ -6,6 +6,7 @@ import com.esotericsoftware.kryonet.Connection
 import de.tomgrill.gdxdialogs.core.dialogs.GDXButtonDialog
 import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.ar.ARWorld
+import skacce.rs.kollago.ar.overlays.AttackResultOverlay
 import skacce.rs.kollago.network.protocol.AttackResult
 import skacce.rs.kollago.network.protocol.NearFeaturesResponse
 import skacce.rs.kollago.network.protocol.ProfileData
@@ -43,15 +44,7 @@ object GameplayNetworkHandler {
         val coinsDelta: Long = packet.updatedProfile.coins - currentProfile.coins
 
         Gdx.app.postRunnable {
-            (KollaGO.INSTANCE.screen as ARWorld).closeOverlay()
-
-            val dialog: GDXButtonDialog = KollaGO.INSTANCE.dialogs.newDialog(GDXButtonDialog::class.java)
-            dialog.setTitle("Attakkk")
-            dialog.setMessage("Result: ${packet.success}\n\nXP: $xpDelta\n\nCoins: $coinsDelta")
-            dialog.addButton("Knykk")
-            dialog.setCancelable(true)
-
-            dialog.build().show()
+            (KollaGO.INSTANCE.screen as ARWorld).showOverlay(AttackResultOverlay(coinsDelta, xpDelta, packet.success))
         }
 
         KollaGO.INSTANCE.networkManager.applyProfileUpdate(packet.updatedProfile)

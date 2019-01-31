@@ -64,6 +64,7 @@ data class BaseData(
     val coordinates: Coordinates? = null,
     val ownerProfile: ProfileData? = null,
     val timeout: Long = 0L,
+    val lastMoved: Long = 0L,
     val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
 ) : pbandk.Message<BaseData> {
     override operator fun plus(other: BaseData?) = protoMergeImpl(other)
@@ -201,6 +202,7 @@ private fun BaseData.protoSizeImpl(): Int {
     if (coordinates != null) protoSize += pbandk.Sizer.tagSize(4) + pbandk.Sizer.messageSize(coordinates)
     if (ownerProfile != null) protoSize += pbandk.Sizer.tagSize(5) + pbandk.Sizer.messageSize(ownerProfile)
     if (timeout != 0L) protoSize += pbandk.Sizer.tagSize(6) + pbandk.Sizer.int64Size(timeout)
+    if (lastMoved != 0L) protoSize += pbandk.Sizer.tagSize(7) + pbandk.Sizer.int64Size(lastMoved)
     protoSize += unknownFields.entries.sumBy { it.value.size() }
     return protoSize
 }
@@ -212,6 +214,7 @@ private fun BaseData.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
     if (coordinates != null) protoMarshal.writeTag(34).writeMessage(coordinates)
     if (ownerProfile != null) protoMarshal.writeTag(42).writeMessage(ownerProfile)
     if (timeout != 0L) protoMarshal.writeTag(48).writeInt64(timeout)
+    if (lastMoved != 0L) protoMarshal.writeTag(56).writeInt64(lastMoved)
     if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
 }
 
@@ -222,15 +225,17 @@ private fun BaseData.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unmarsh
     var coordinates: Coordinates? = null
     var ownerProfile: ProfileData? = null
     var timeout = 0L
+    var lastMoved = 0L
     while (true) when (protoUnmarshal.readTag()) {
         0 -> return BaseData(baseId, level, items, coordinates,
-            ownerProfile, timeout, protoUnmarshal.unknownFields())
+            ownerProfile, timeout, lastMoved, protoUnmarshal.unknownFields())
         10 -> baseId = protoUnmarshal.readString()
         16 -> level = protoUnmarshal.readInt32()
         26 -> items = protoUnmarshal.readString()
         34 -> coordinates = protoUnmarshal.readMessage(Coordinates.Companion)
         42 -> ownerProfile = protoUnmarshal.readMessage(ProfileData.Companion)
         48 -> timeout = protoUnmarshal.readInt64()
+        56 -> lastMoved = protoUnmarshal.readInt64()
         else -> protoUnmarshal.unknownField()
     }
 }

@@ -11,6 +11,8 @@ import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.Platform
 import skacce.rs.kollago.ar.ARWorld
+import skacce.rs.kollago.ar.overlays.LoadingOverlay
+import skacce.rs.kollago.ar.overlays.PlayerBaseOverlay
 import skacce.rs.kollago.network.handlers.GameplayNetworkHandler
 import skacce.rs.kollago.network.protocol.*
 import skacce.rs.kollago.screens.LoadingScreen
@@ -87,14 +89,14 @@ class NetworkManager {
 
     private fun performApiRequest(path: String, data: JSONObject, callback: (Int, String) -> Unit) {
         performPost("$apiUrl/$path", data.toJSONString()) { success, response ->
-            if(!success) {
+            if (!success) {
                 callback(-1, "")
             } else {
                 val response0: JSONObject = JSONParser().parse(response) as JSONObject
                 val errorCode: Int = response0["error_code"].toString().toInt()
                 var message: String = response0["message"]?.toString() ?: response
 
-                if(message.isBlank()) {
+                if (message.isBlank()) {
                     message = response
                 }
 
@@ -135,7 +137,7 @@ class NetworkManager {
         val flagTrace: Platform.NativePerformanceTrace = game.platform.createTrace("network_flag_download")
         flagTrace.start()
 
-        if(flagCache.containsKey(flagId)) {
+        if (flagCache.containsKey(flagId)) {
             callback(true, flagCache[flagId])
 
             flagTrace.incrementMetric("cache", 1)
@@ -146,7 +148,7 @@ class NetworkManager {
         flagTrace.incrementMetric("download", 1)
 
         downloadTextureData("$apiUrl/flag/$flagId?uid=$firebaseUid") { success, texture ->
-            if(success) {
+            if (success) {
                 flagCache[flagId] = texture!!
             }
 
@@ -157,7 +159,7 @@ class NetworkManager {
     }
 
     fun joinGameServer(callback: (success: Boolean) -> Unit) {
-        if(gameServerAddress.isBlank() || nominatimAddress.isBlank()) {
+        if (gameServerAddress.isBlank() || nominatimAddress.isBlank()) {
             callback(false)
             return
         }
@@ -165,7 +167,7 @@ class NetworkManager {
         val joinTrace: Platform.NativePerformanceTrace = game.platform.createTrace("network_join_game")
         joinTrace.start()
 
-        if(::kryoClient.isInitialized && kryoClient.isConnected) {
+        if (::kryoClient.isInitialized && kryoClient.isConnected) {
             kryoClient.dispose()
         }
 
@@ -184,6 +186,7 @@ class NetworkManager {
         packetHandler.registerPacket(ProfileRequest::class)
         packetHandler.registerHandler(GameplayNetworkHandler.handleProfileResponse)
         packetHandler.registerPacket(UpdateProfile::class)
+        packetHandler.registerPacket(MoveBase::class)
 
         // gameplay.proto
 
@@ -213,7 +216,7 @@ class NetworkManager {
         packetHandler.sendPacketForResponse(LoginRequest(firebaseUid), kryoClient) {
             val response: LoginResponse = it as LoginResponse
 
-            if(response.errorCode != LoginResponse.ErrorCode.OK) {
+            if (response.errorCode != LoginResponse.ErrorCode.OK) {
                 kryoClient.close()
                 callback(false)
 
@@ -236,11 +239,15 @@ class NetworkManager {
     fun updateBase(baseId: String, callback: (BaseData) -> Unit = {}) {
         packetHandler.sendPacketForResponse(FetchBase(firebaseUid, baseId), kryoClient) {
             callback((it as NearFeaturesResponse).baseData[0])
+
+            if (baseId == ownProfile.baseId) {
+                ownBase = it.baseData[0]
+            }
         }
     }
 
     fun updateProfile(callback: (success: Boolean) -> Unit) {
-        if(!validateConnection()) {
+        if (!validateConnection()) {
             callback(false)
             return
         }
@@ -263,7 +270,7 @@ class NetworkManager {
     fun getStopTimeout(stop: StopData): Long = stopTimeouts[stop.stopId] ?: 0
 
     fun collectStop(stop: StopData, position: GeoPoint, callback: (profile: ProfileData) -> Unit) {
-        if(getStopTimeout(stop) - System.currentTimeMillis() > 0) {
+        if (getStopTimeout(stop) - System.currentTimeMillis() > 0) {
             return
         }
 
@@ -271,6 +278,32 @@ class NetworkManager {
 
         packetHandler.sendPacketForResponse(CollectStop(firebaseUid, position.toCoordinates(), stop.stopId), kryoClient) {
             callback((it as CollectStopResponse).updatedProfile!!)
+        }
+    }
+
+    fun moveBase(position: GeoPoint, callback: (Boolean) -> Unit) {
+        val ar: ARWorld = game.screen as ARWorld
+        ar.showOverlay(LoadingOverlay())
+
+        val packet: MoveBase = MoveBase(game.networkManager.firebaseUid, position.toCoordinates())
+        game.networkManager.packetHandler.sendPacketForResponse(packet, game.networkManager.kryoClient) moveBasePacket@{
+            it as BaseData
+            if (it.baseId.isBlank()) {
+                callback(false)
+                return@moveBasePacket
+            }
+
+            val updateBases: NearBases = NearBases(packet.firebaseUid, packet.position)
+            game.networkManager.packetHandler.sendPacketForResponse(updateBases, game.networkManager.kryoClient) updateBases@{
+                it as NearFeaturesResponse
+
+                it.baseData.forEach {
+                    ar.createOrUpdateBase(it)
+                }
+
+                ar.closeOverlay(force = true)
+                callback(true)
+            }
         }
     }
 

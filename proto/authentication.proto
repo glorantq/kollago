@@ -33,3 +33,10 @@ message UpdateProfile {
 
     string gameSecret = 4;
 }
+
+message MoveBase {
+    string firebaseUid = 1;
+    Coordinates position = 2;
+    
+    string gameSecret = 3;
+}

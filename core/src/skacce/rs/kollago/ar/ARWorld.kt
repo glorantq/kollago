@@ -5,15 +5,10 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.Screen
 import com.badlogic.gdx.graphics.*
-import com.badlogic.gdx.graphics.g2d.NinePatch
-import com.badlogic.gdx.graphics.g3d.Environment
-import com.badlogic.gdx.graphics.g3d.Model
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
-import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
-import com.badlogic.gdx.graphics.g3d.utils.AnimationController
 import com.badlogic.gdx.graphics.glutils.FrameBuffer
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.math.Rectangle
@@ -21,11 +16,8 @@ import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Align
-import com.badlogic.gdx.utils.BufferUtils
-import com.badlogic.gdx.utils.GdxRuntimeException
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import ktx.math.vec2
-import ktx.math.vec3
 import org.oscim.core.GeoPoint
 import skacce.rs.kollago.KollaGO
 import skacce.rs.kollago.Platform
@@ -38,10 +30,14 @@ import skacce.rs.kollago.graphics.text.FontStyle
 import skacce.rs.kollago.input.InputHandler
 import skacce.rs.kollago.map.VTMMap
 import skacce.rs.kollago.network.NetworkManager
-import skacce.rs.kollago.network.protocol.*
-import skacce.rs.kollago.utils.*
-import java.nio.IntBuffer
+import skacce.rs.kollago.network.protocol.BaseData
+import skacce.rs.kollago.network.protocol.Coordinates
+import skacce.rs.kollago.network.protocol.StopData
+import skacce.rs.kollago.utils.ARUtils
+import skacce.rs.kollago.utils.toCoordinates
+import skacce.rs.kollago.utils.toGeoPoint
 import java.util.*
+import kotlin.concurrent.thread
 
 class ARWorld : Screen, InputHandler {
     private fun framebufferSize(): Int = (KollaGO.MAP_RESOLUTION * (KollaGO.MAP_SCALE + 1f)).toInt()
@@ -61,7 +57,11 @@ class ARWorld : Screen, InputHandler {
 
     private val floorMesh: Mesh = ARUtils.createPlaneMesh(KollaGO.MAP_RESOLUTION, KollaGO.MAP_RESOLUTION, 0f, 0f, 1f, 1f)
     private val skyModelInstance: ModelInstance = ModelInstance(ARUtils.createSkySphere())
-    private val skyRotation: Int = if (random.nextInt(10) < 5) { 1 } else { -1 }
+    private val skyRotation: Int = if (random.nextInt(10) < 5) {
+        1
+    } else {
+        -1
+    }
     private val vtmMap: VTMMap = VTMMap((KollaGO.MAP_RESOLUTION * KollaGO.MAP_SCALE).toInt(), (KollaGO.MAP_RESOLUTION * KollaGO.MAP_SCALE).toInt())
     private val mapFrameBuffer: FrameBuffer = FrameBuffer(Pixmap.Format.RGB565, framebufferSize(), framebufferSize(), false, true)
 
@@ -123,6 +123,15 @@ class ARWorld : Screen, InputHandler {
         lastUpdatePoint = vtmMap.getLocation()
         actualiseFeatures()
 
+        thread(start = true, isDaemon = true, name = "FeatureUpdaterThread") {
+            while(!Thread.interrupted()) {
+                Thread.sleep(30 * 1000)
+
+                Gdx.app.log("FeatureUpdaterThread", "Updating")
+                actualiseFeatures()
+            }
+        }
+
         initTrace.stop()
     }
 
@@ -134,7 +143,7 @@ class ARWorld : Screen, InputHandler {
 
         temp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
         temp.set(game.staticViewport.unproject(temp))
-        cameraController.active = overlayScreen == null && !hudRenderer.containsCoordinates(temp.x, temp.y)
+        cameraController.active = overlayScreen == null && hudRenderer.containsCoordinates(temp.x, temp.y) == HUDRenderer.Part.NONE
 
         camera.update()
         worldViewport.apply()
@@ -193,13 +202,13 @@ class ARWorld : Screen, InputHandler {
                 it.value.render(modelBatch)
 
                 val playerOpacity: Float = it.value.calculatePlayerOpacity()
-                if(playerOpacity < lowestPlayerOpacity) {
+                if (playerOpacity < lowestPlayerOpacity) {
                     lowestPlayerOpacity = playerOpacity
                 }
             }
         }
 
-        if(lowestPlayerOpacity <= 0.1f) {
+        if (lowestPlayerOpacity <= 0.1f) {
             lowestPlayerOpacity = 0.1f
         }
 
@@ -226,7 +235,7 @@ class ARWorld : Screen, InputHandler {
             vtmMap.animateToPoint(targetPoint!!)
 
             useCompassRotation = false
-            if(!selectedModel.isRunning()) {
+            if (!selectedModel.isRunning()) {
                 selectedModel.setRunningAnimation()
             }
 
@@ -257,18 +266,18 @@ class ARWorld : Screen, InputHandler {
 
         hudRenderer.render()
 
-        if(overlayScreen != null) {
+        if (overlayScreen != null) {
             game.spriteBatch.draw(darkenPixel, 0f, 0f, game.staticViewport.worldWidth, game.staticViewport.worldHeight)
             overlayScreen!!.render()
         }
 
         game.textRenderer.drawWrappedText("", 10f, worldViewport.worldHeight - 100, 24, "Roboto", FontStyle.NORMAL, Color.RED, worldViewport.worldWidth - 20, Align.topLeft)
 
-        if(targetPoint != null && lastUpdatePoint.sphericalDistance(targetPoint) >= 150) {
+        if (targetPoint != null && lastUpdatePoint.sphericalDistance(targetPoint) >= 150) {
             actualiseFeatures()
         }
 
-        if(Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
             closeOverlay()
         }
 
@@ -276,8 +285,8 @@ class ARWorld : Screen, InputHandler {
     }
 
     override fun tap(x: Float, y: Float, count: Int, button: Int): Boolean {
-        if(overlayScreen != null) {
-            if(!overlayScreen!!.boundingBox.contains(x, y)) {
+        if (overlayScreen != null) {
+            if (!overlayScreen!!.boundingBox.contains(x, y)) {
                 closeOverlay()
             }
 
@@ -291,16 +300,8 @@ class ARWorld : Screen, InputHandler {
 
         synchronized(loadedBases) {
             loadedBases.forEach {
-                if(it.value.rayTest(pickRay, camera)) {
-                    Gdx.app.postRunnable {
-                        showOverlay(LoadingOverlay())
-
-                        networkManager.updateBase(it.value.backendData.baseId) {
-                            Gdx.app.postRunnable {
-                                showOverlay(PlayerBaseOverlay(it, vtmMap))
-                            }
-                        }
-                    }
+                if (it.value.rayTest(pickRay, camera)) {
+                    openBaseOverlay(it.value.backendData)
 
                     return true
                 }
@@ -309,7 +310,7 @@ class ARWorld : Screen, InputHandler {
 
         synchronized(loadedStops) {
             loadedStops.forEach {
-                if(it.value.rayTest(pickRay, camera)) {
+                if (it.value.rayTest(pickRay, camera)) {
                     Gdx.app.postRunnable {
                         showOverlay(RewardStopOverlay(it.value.backendData, vtmMap))
                     }
@@ -319,13 +320,29 @@ class ARWorld : Screen, InputHandler {
             }
         }
 
+        if (hudRenderer.containsCoordinates(x, y) == HUDRenderer.Part.PROFILE) {
+            openBaseOverlay(networkManager.ownBase, settings = true)
+        }
+
         clickTrace.stop()
 
         return true
     }
 
+    private fun openBaseOverlay(base: BaseData, settings: Boolean = false) {
+        Gdx.app.postRunnable {
+            showOverlay(LoadingOverlay())
+
+            networkManager.updateBase(base.baseId) {
+                Gdx.app.postRunnable {
+                    showOverlay(PlayerBaseOverlay(it, vtmMap, settings))
+                }
+            }
+        }
+    }
+
     fun showOverlay(overlay: Overlay) {
-        if(overlayScreen != null) {
+        if (overlayScreen != null) {
             overlayScreen!!.hide()
         }
 
@@ -334,8 +351,8 @@ class ARWorld : Screen, InputHandler {
         overlayScreen!!.show()
     }
 
-    fun closeOverlay() {
-        if(overlayScreen != null) {
+    fun closeOverlay(force: Boolean = false) {
+        if (overlayScreen != null && (overlayScreen !is LoadingOverlay || force)) {
             overlayScreen!!.hide()
 
             overlayScreen = null
@@ -351,7 +368,7 @@ class ARWorld : Screen, InputHandler {
 
     fun createOrUpdateBase(base: BaseData) {
         synchronized(loadedBases) {
-            if(loadedBases.containsKey(base.baseId)) {
+            if (loadedBases.containsKey(base.baseId)) {
                 loadedBases[base.baseId]!!.updateBackendData(base)
             } else {
                 loadedBases[base.baseId] = PlayerBase(base, vtmMap, KollaGO.MAP_SCALE.toInt())
@@ -363,7 +380,7 @@ class ARWorld : Screen, InputHandler {
         synchronized(loadedStops) {
             val keysToRemove: MutableList<String> = arrayListOf()
             loadedStops.forEach {
-                if(it.value.geoPoint.sphericalDistance((if(targetPoint != null) targetPoint else vtmMap.getLocation())!!) > 1000) {
+                if (it.value.geoPoint.sphericalDistance((if (targetPoint != null) targetPoint else vtmMap.getLocation())!!) > 1000) {
                     keysToRemove.add(it.key)
                 }
             }
@@ -378,7 +395,7 @@ class ARWorld : Screen, InputHandler {
         synchronized(loadedBases) {
             val keysToRemove: MutableList<String> = arrayListOf()
             loadedBases.forEach {
-                if(it.value.geoPoint.sphericalDistance((if(targetPoint != null) targetPoint else vtmMap.getLocation())!!) > 1000) {
+                if (it.value.geoPoint.sphericalDistance((if (targetPoint != null) targetPoint else vtmMap.getLocation())!!) > 1000) {
                     keysToRemove.add(it.key)
                 }
             }
@@ -395,7 +412,7 @@ class ARWorld : Screen, InputHandler {
         val featuresTrace: Platform.NativePerformanceTrace = game.platform.createTrace("world_actualise_features")
         featuresTrace.start()
 
-        val location: Coordinates = (if(targetPoint != null) targetPoint else vtmMap.getLocation())!!.toCoordinates()
+        val location: Coordinates = (if (targetPoint != null) targetPoint else vtmMap.getLocation())!!.toCoordinates()
 
         networkManager.actualiseFeatures(location)
         removeFarFeatures()

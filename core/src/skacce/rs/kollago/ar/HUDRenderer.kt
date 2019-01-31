@@ -60,7 +60,7 @@ class HUDRenderer : InputHandler {
     fun render() {
         val profile: ProfileData = game.networkManager.ownProfile
 
-        profile@run {
+        profile@ run {
             game.spriteBatch.shader = avatarShader
 
             avatarOverlay.bind(1)
@@ -93,7 +93,7 @@ class HUDRenderer : InputHandler {
             }
         }
 
-        coins@run {
+        coins@ run {
             val coinsText: String = profile.coins.toString()
             temp.set(game.textRenderer.getTextSize(coinsText, "Hemi", FontStyle.NORMAL, 30))
 
@@ -113,9 +113,23 @@ class HUDRenderer : InputHandler {
         }
     }
 
-    fun containsCoordinates(x: Float, y: Float): Boolean = profileBounds.contains(x, y) || coinBounds.contains(x, y)
+    fun containsCoordinates(x: Float, y: Float): Part {
+        if (profileBounds.contains(x, y)) {
+            return Part.PROFILE
+        }
+
+        if (coinBounds.contains(x, y)) {
+            return Part.COINS
+        }
+
+        return Part.NONE
+    }
 
     fun dispose() {
         game.inputHandler.removeInputHandler(this)
+    }
+
+    enum class Part {
+        PROFILE, COINS, NONE
     }
 }

@@ -78,6 +78,20 @@ data class UpdateProfile(
     }
 }
 
+data class MoveBase(
+        val firebaseUid: String = "",
+        val position: Coordinates? = null,
+        val gameSecret: String = "",
+        val unknownFields: Map<Int, pbandk.UnknownField> = emptyMap()
+) : pbandk.Message<MoveBase> {
+    override operator fun plus(other: MoveBase?) = protoMergeImpl(other)
+    override val protoSize by lazy { protoSizeImpl() }
+    override fun protoMarshal(m: pbandk.Marshaller) = protoMarshalImpl(m)
+    companion object : pbandk.Message.Companion<MoveBase> {
+        override fun protoUnmarshal(u: pbandk.Unmarshaller) = MoveBase.protoUnmarshalImpl(u)
+    }
+}
+
 private fun LoginRequest.protoMergeImpl(plus: LoginRequest?): LoginRequest = plus?.copy(
         unknownFields = unknownFields + plus.unknownFields
 ) ?: this
@@ -221,6 +235,40 @@ private fun UpdateProfile.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Un
         16 -> xpDelta = protoUnmarshal.readInt32()
         24 -> coinsDelta = protoUnmarshal.readInt32()
         34 -> gameSecret = protoUnmarshal.readString()
+        else -> protoUnmarshal.unknownField()
+    }
+}
+
+private fun MoveBase.protoMergeImpl(plus: MoveBase?): MoveBase = plus?.copy(
+        position = position?.plus(plus.position) ?: plus.position,
+        unknownFields = unknownFields + plus.unknownFields
+) ?: this
+
+private fun MoveBase.protoSizeImpl(): Int {
+    var protoSize = 0
+    if (firebaseUid.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(1) + pbandk.Sizer.stringSize(firebaseUid)
+    if (position != null) protoSize += pbandk.Sizer.tagSize(2) + pbandk.Sizer.messageSize(position)
+    if (gameSecret.isNotEmpty()) protoSize += pbandk.Sizer.tagSize(3) + pbandk.Sizer.stringSize(gameSecret)
+    protoSize += unknownFields.entries.sumBy { it.value.size() }
+    return protoSize
+}
+
+private fun MoveBase.protoMarshalImpl(protoMarshal: pbandk.Marshaller) {
+    if (firebaseUid.isNotEmpty()) protoMarshal.writeTag(10).writeString(firebaseUid)
+    if (position != null) protoMarshal.writeTag(18).writeMessage(position)
+    if (gameSecret.isNotEmpty()) protoMarshal.writeTag(26).writeString(gameSecret)
+    if (unknownFields.isNotEmpty()) protoMarshal.writeUnknownFields(unknownFields)
+}
+
+private fun MoveBase.Companion.protoUnmarshalImpl(protoUnmarshal: pbandk.Unmarshaller): MoveBase {
+    var firebaseUid = ""
+    var position: Coordinates? = null
+    var gameSecret = ""
+    while (true) when (protoUnmarshal.readTag()) {
+        0 -> return MoveBase(firebaseUid, position, gameSecret, protoUnmarshal.unknownFields())
+        10 -> firebaseUid = protoUnmarshal.readString()
+        18 -> position = protoUnmarshal.readMessage(Coordinates.Companion)
+        26 -> gameSecret = protoUnmarshal.readString()
         else -> protoUnmarshal.unknownField()
     }
 }
