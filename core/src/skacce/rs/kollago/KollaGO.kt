@@ -22,6 +22,36 @@ import skacce.rs.kollago.network.NetworkManager
 import skacce.rs.kollago.screens.LoadingScreen
 import skacce.rs.kollago.screens.LoginScreen
 
+/**
+ * KollaGO fő file
+ *
+ * Elindítja a játékot, betölti a textúrákat, és bejelentkezteti a játékost.
+ * A bejelentkezés és GPS inicializáció után a játék fő logikája átkerül az @see skacce.rs.kollago.ar.ARWorld fileba
+ *
+ * Bejelentkezés során a játék először a Google szerverein hitelesíti magát a Firebase szolgáltatással, majd az itt
+ * kapott azonosítóval hitelesíti magát a játék fő szerverén. Ezzel megkapja annak a szervernek a címét, amin maga
+ * a játék történik. Ez a többszerveres megoldás optimalizáció miatt szükséges. Miután csatlakozott a játékszerverre,
+ * lekéri a közelben lévő bázisokat és állomásokat, valamint a játékos profiladatait (mindet a Firebase azonosítóval).
+ *
+ * Játék során minden üzetet tartalmazza a titkosított Firebase azonosítót, amit a szerverek tudnak dekódolni, ezzel
+ * azonosítva a játékosokat.
+ *
+ * A bázisokat a fő szerver kezeli, így akárhol is jelentkezik be valaki, azokat mindenképpen látni fogja. Az állomásokat
+ * a játékszerverek kezelik, így nincs nagy teher egy adatbázison sem. A támadásokat a közponi szerver kezeli.
+ *
+ * A hálózati protokoll alapja a Kryonet és Protobuf. Protobuf fájklokból állnak össze az üzenetek (common.proto,
+ * gameplay.proto, authentication.proto), a Kryonet pedig a TCP kapcsolatot biztosítja.
+ *
+ * A saját zászlókat is a központi szerver látja el, egy HTTP endpoint segítségével. Ehhez szintén
+ * szükséges a Firebase azonosító. A játék onnan letölti a megfelelő textúrákat, majd beállítja
+ * őket a megfelelő zászlóra.
+ *
+ * TL;DR: A játékosok pénzt gyűjtenek állomásokon, amikből megtámadhatják egymást
+ *
+ * @author Gerber Lóránt Viktor
+ * @since 1.0
+ */
+
 class KollaGO private constructor(val platform: Platform, val textInputProvider: TextInputProvider) : Game() {
     companion object {
         const val WIDTH: Float = 720f
